@@ -1,0 +1,24 @@
+; Modify AsmFunction to perform the calculation gvar+(a*(b+c))/(d-e).
+; Keep in mind the C declaration:
+; int AsmFunction(int a, char b, char c, int d, int e);
+
+	CPU	8086
+	align	2
+
+AsmFunction:
+	push	bp
+	mov	ax, word [bp+4]
+	mov	bx, word [bp+5]
+	mov	cx, word [bp+6]
+	mov	dx, word [bp+8]
+	mov	si, word [bp+10]
+	neg	si
+	add	dx, si
+	add	bx, cx
+	imul	ax, bx
+	idiv	ax, dx
+	add	ax, gvar
+	pop	bp 
+	ret
+
+

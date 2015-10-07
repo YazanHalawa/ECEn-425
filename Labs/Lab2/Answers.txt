@@ -1,0 +1,29 @@
+Name: Yazan Halawa
+
+
+1) 0x08A0
+2) 0x091E
+3) b 0000:091E
+4) To display breakpoints: b
+   To delete a breakpoint of ID 0: c 0
+5) 0x09B2
+6) dumpw k
+7) mm k
+   if k was char: mm k 1
+8) To list the monitors: m
+   To delete monitor of ID 3: n 3
+9) pw k 0x113
+10) 0x088A
+11) 0x088A
+12) 0xFFF6
+13) 0xFFF2
+14) fb ax 0x333
+15) hist
+16) 0xFFFE
+17) downwards
+18) 0xFFC4
+19) they are pushed to the stack and accessed using BP pointer
+20) they are moved to the ax register
+21) it moves the SP pointer 2 bytes further in the stack to allow memory for defining a new local int
+22) 0x83C402. It is three bytes large. The last byte (0x02) represents the numerical value 2 that is added
+23) It's to allocate 2 bytes of data for k initialized to 0
