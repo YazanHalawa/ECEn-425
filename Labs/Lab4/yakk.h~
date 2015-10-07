@@ -1,0 +1,20 @@
+
+extern unsigned int YKCtxSwCount;
+extern unsigned int YKIdleCount;
+extern unsigned int YKTickNum;
+
+void YKInitialize(void);
+
+void YKEnterMutex(void);
+
+void YKExitMutex(void);
+
+void YKIdleTask(void);
+
+void YKNewTask(void (* task)(void), void *taskStack, unsigned char priority);
+
+void YKRun(void);
+
+void YKScheduler(void);
+
+void YKDispatcher(void);

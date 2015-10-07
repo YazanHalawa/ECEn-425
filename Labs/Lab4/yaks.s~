@@ -1,0 +1,11 @@
+YKEnterMutex:
+	cli
+	ret
+
+YKExitMutex:
+	sti
+	ret
+
+YKDispatcher:
+	iret
+	

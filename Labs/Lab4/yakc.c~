@@ -1,0 +1,98 @@
+#include "yakk.h"
+#include "yaku.h"
+
+
+
+typedef struct taskblock *TCBptr;
+typedef struct taskblock
+{				/* the TCB struct definition */
+    void *stackptr;		/* pointer to current top of stack */
+    int state;			/* current state */
+    int priority;		/* current priority */
+    int delay;			/* #ticks yet to wait */
+    TCBptr next;		/* forward ptr for dbl linked list */
+    TCBptr prev;		/* backward ptr for dbl linked list */
+}  TCB;
+
+TCBptr YKCurTask
+TCBptr YKRdyList;				/* a list of TCBs of all ready tasks in order of decreasing priority */ 
+TCBptr YKSuspList;				/* tasks delayed or suspended */
+TCBptr YKAvailTCBList;			/* a list of available TCBs */
+TCB    YKTCBArray[MAX_TASKS+1];	/* array to allocate all needed TCBs (extra one is for the idle task) */
+bool YKRun;
+
+int idleTaskStkp[IDLE_TASK_STACK_SIZE];
+
+void YKInitialize(void) {
+	// Code to initialize global variables
+	YKCtxSwCount = 0;
+	YKIdleCount = 0;
+	YKTickNum = 0;
+	YKRun = 0;
+	// Code to create doubly linked list
+	YKAvailTCBList = &(YKTCBArray[0]);
+    for (i = 1; i < MAX_TASKS; i++) {
+		YKTCBArray[i].next = &(YKTCBArray[i+1]);
+		YKTCBArray[i].prev = &(YKTCBArray[i-1]);
+	}
+	YKTCBArray[MAX_TASKS].next = NULL;
+	YKTCBArray[0].prev = NULL;
+
+	YKNewTask(YKIdleTask,  (void *)&YKIdleTask[IDLE_TASK_STACK_SIZE], MAX_TASKS);
+}
+
+void YKIdleTask(void) {
+	while(1) {
+		YKEnterMutex();
+		YKIdleTask = YKIdleTask+1;
+		YKExitMutex();
+	}
+}
+
+void YKNewTask(void (* task)(void), void *taskStack, unsigned char priority) {
+	/* Create the Task’s TCB
+	   Call the Scheduler to see if a higher priority interrupt should run */
+	YKCtxSwCount++;	
+	// addTCB();
+	TCBPtr tmp, tmp2;
+	tmp = YKAvailTCBList;
+    YKAvailTCBList = tmp->next;
+    /* code to insert an entry in doubly linked ready list sorted by
+       priority numbers (lowest number first).  tmp points to TCB
+       to be inserted */ 
+	if (YKRdyList == NULL) { /* is this first insertion? */
+		YKRdyList = tmp;
+		tmp->next = NULL;
+		tmp->prev = NULL;
+    }
+    else {					/* not first insertion */
+		tmp2 = YKRdyList;	/* insert in sorted ready list */
+		while (tmp2->priority < tmp->priority)
+			tmp2 = tmp2->next;	/* assumes idle task is at end */
+		if (tmp2->prev == NULL)	/* insert in list before tmp2 */
+			YKRdyList = tmp;
+		else
+			tmp2->prev->next = tmp;
+		tmp->prev = tmp2->prev;
+		tmp->next = tmp2;
+		tmp2->prev = tmp;
+		tmp->stackptr = *taskStack;
+		tmp->priority = priority;
+    }
+
+	YKScheduler();
+}
+
+void YKRun(void) {
+	/* Set global flag to indicate kernel started */
+	YKRun = 1;
+	YKScheduler();
+}
+
+void YKScheduler(bool saveContext) {
+/* If (current task.priority != highestPriorityReadyTask.priority)
+	Call Dispatcher to run highest priority ready task. */
+	if (YKCurTask != YKRdyList)  // We don't need to look to the priority because it is a pointer 
+		if (YKRun)
+			YKDispatcher();
+}
