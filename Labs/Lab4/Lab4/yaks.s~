@@ -1,0 +1,62 @@
+YKEnterMutex:
+	cli
+	ret
+
+YKExitMutex:
+	sti
+	ret
+
+YKSavecontext:
+
+
+YKDispatcher:
+	
+
+	; set interrupt flag	
+	push bp
+	mov bp, sp
+	pushf
+
+	push cs
+	push word[bp+2]
+	push word[bp]
+
+	; save registers
+	
+	
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	bp
+	push	es
+	push 	ds
+	;push word[bp+?]
+
+	;mov YKCurTask, RdyList
+	mov bx, [YKRdyList]
+	mov [YKCurTask], bx 
+	;; save return address
+
+	; get the imr
+	; conditional jummp?
+	; mov ip, [bp+4]
+
+	; pop registers
+	pop		ds
+	pop		es
+	pop		bp
+	pop		di
+	pop		si
+	pop		dx
+	pop		cx
+	pop		bx
+	pop		ax
+	pop bp
+	iret
+
+YKRestoreContext:
+	
+	
