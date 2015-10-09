@@ -11,7 +11,7 @@ typedef struct taskblock
 	void* startingAddress;
     void* stackptr;		/* pointer to current top of stack */
     int state;			/* current state */
-    int priority;		/* current priority */
+    unsigned char priority;		/* current priority */
     int delay;			/* #ticks yet to wait */
     TCBptr next;		/* forward ptr for dbl linked list */
     TCBptr prev;		/* backward ptr for dbl linked list */
@@ -43,7 +43,7 @@ void YKInitialize(void) {
 	YKSuspList = NULL;
 	YKAvailTCBList = NULL;
 	// Code to create doubly linked list
-	YKAvailTCBList = &(YKTCBArray[0]);
+	//YKRdyList = &(YKTCBArray[0]);
    	for (i = 0; i <= MAX_TASKS; i++) {
 		if (i == 0) 	// first node in list
 			YKTCBArray[i].prev = NULL;
@@ -57,12 +57,13 @@ void YKInitialize(void) {
 
 
 	YKNewTask(YKIdleTask,  (void *)&YKIdleTask[IDLE_TASK_STACK_SIZE], MAX_TASKS+1);
-	YKCurTask = &YKTCBArray[101];	// this needs to be fixed
-	YKCurTask->priority = 101; // this is a hack, fix later
+	//YKCurTask = &YKTCBArray[101];	// this needs to be fixed
+	//YKCurTask->priority = 101; // this is a hack, fix later
 	printString("initialization finished\n\r");
 }
 
 void YKIdleTask(void) {
+	printString("-in Idle Task\n\r");	// remove this later	
 	while(1) {
 		YKEnterMutex();
 		YKIdleCount = YKIdleCount+1;
@@ -70,24 +71,28 @@ void YKIdleTask(void) {
 	}
 }
 
-void YKNewTask(void (* task)(void), unsigned int *taskStack, unsigned char priority) {
+void YKNewTask(void (* task)(void), void *taskStack, unsigned char priority) {
 
-	TCBptr tmp, tmp2;
 	/* Create the Task’s TCB
 	   Call the Scheduler to see if a higher priority interrupt should run */
-	YKCtxSwCount++;	
-	// addTCB();
-	tmp = YKAvailTCBList;
-    	YKAvailTCBList = tmp->next;
+	TCBptr insertion, iter;
+	//tmp = YKAvailTCBList;
+    	//YKAvailTCBList = tmp->next;
 
-	tmp->startingAddress = task;
-	tmp->stackptr = taskStack;
-	tmp->priority = priority;
+	insertion->startingAddress = task;
+	insertion->stackptr = taskStack;
+	insertion->priority = priority;
 	
+	//printString("task: ");
+	//printInt((int)task);
+	//printString("\n\r");
+	
+	// initialize the stack to all 0
+	/*
 	*(taskStack-1) = 0x0200;
 	*(taskStack-2) = 0;
-	*(taskStack-3) = (int)task;
-	*(taskStack-4) = (int)&taskStack[0];
+	*(taskStack-3) = (char)task;
+	*(taskStack-4) = (char)&taskStack[0];
 	*(taskStack-5) = 0;
 	*(taskStack-6) = 0;
 	*(taskStack-7) = 0;
@@ -96,49 +101,48 @@ void YKNewTask(void (* task)(void), unsigned int *taskStack, unsigned char prior
 	*(taskStack-10) = 0;
 	*(taskStack-11) = 0;
 	*(taskStack-12) = 0;
+	*/
 
     /* code to insert an entry in doubly linked ready list sorted by
        priority numbers (lowest number first).  tmp points to TCB
        to be inserted */ 
 	if (YKRdyList == NULL) { /* is this first insertion? */
-		YKRdyList = tmp;
-		tmp->next = NULL;
-		tmp->prev = NULL;
+		YKRdyList = insertion;
+		insertion->next = NULL;
+		insertion->prev = NULL;
 		
   	}
   	else {				/* not first insertion */
-		tmp2 = YKRdyList;	/* insert in sorted ready list */
-		while (tmp2->priority < tmp->priority)
-			tmp2 = tmp2->next;	/* assumes idle task is at end */
-		if (tmp2->prev == NULL)	/* insert in list before tmp2 */
-			YKRdyList = tmp;
-		else
-			tmp2->prev->next = tmp;
-		tmp->prev = tmp2->prev;
-		tmp->next = tmp2;
-		tmp2->prev = tmp;
+		iter = YKRdyList;	/* insert in sorted ready list */
+		while (iter->next != NULL && iter->next->priority < insertion->priority) {
+			iter = iter->next;	/* assumes idle task is at end */
+		}
+		if (iter->next != NULL) {
+			iter->next->prev = insertion;
+		}
+		insertion->next = iter->next;
+		iter->next = insertion;
+		insertion->prev = iter;
+		
     }
 	
 
 
-	// initialize the stack to all 0
+
 	printString("  priority: ");
-	printInt(priority);
+	printChar(priority);
 	printString("\n\r");
 	printString("  YKCurTask->priority: ");
-	printInt(YKCurTask->priority);
+	printChar(YKCurTask->priority);
 	printString("\n\r");
-	printString("  tmp->priority: ");
-	printInt(tmp->priority);
-	printString("\n\r");
-	if (priority < YKCurTask->priority) {
+	if (YKCurTask != NULL && priority < YKCurTask->priority) {
 		// YKCurTask = tmp; // do not uncomment
 		YKScheduler();
 	} else {
 		printString("new task created, but scheduler not called\n\r");
 	}
 	printString("  YKCurTask->priority is now: ");
-	printInt(YKCurTask->priority);
+	printChar(YKCurTask->priority);
 	printString("\n\r");
 }
 
@@ -159,9 +163,10 @@ void YKScheduler() {
 	printString("  YKRdyList->priority: ");
 	printInt(YKRdyList->priority);
 	printString("\n\r");
-	if (YKCurTask->priority != YKRdyList->priority) { // We don't need to look to the priority because it is a pointer 
+	if (YKCurTask != YKRdyList) { 
 		if (running) {
 			printString("dispatcher called\n\r");
+			YKCtxSwCount++; // Context switch happens here right?
 			YKDispatcher();
 		} else {
 			printString("dispatcher NOT called\n\r");

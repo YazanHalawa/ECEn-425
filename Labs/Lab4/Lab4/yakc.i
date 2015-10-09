@@ -102,7 +102,7 @@ void YKExitMutex(void);
 
 void YKIdleTask(void);
 
-void YKNewTask(void (* task)(void), unsigned int *taskStack, unsigned char priority);
+void YKNewTask(void (* task)(void), void *taskStack, unsigned char priority);
 
 void YKRun(void);
 
@@ -149,7 +149,7 @@ typedef struct taskblock
  void* startingAddress;
     void* stackptr;
     int state;
-    int priority;
+    unsigned char priority;
     int delay;
     TCBptr next;
     TCBptr prev;
@@ -181,7 +181,7 @@ void YKInitialize(void) {
  YKSuspList = 0;
  YKAvailTCBList = 0;
 
- YKAvailTCBList = &(YKTCBArray[0]);
+
     for (i = 0; i <= 100; i++) {
   if (i == 0)
    YKTCBArray[i].prev = 0;
@@ -195,12 +195,13 @@ void YKInitialize(void) {
 
 
  YKNewTask(YKIdleTask, (void *)&YKIdleTask[128], 100 +1);
- YKCurTask = &YKTCBArray[101];
- YKCurTask->priority = 101;
+
+
  printString("initialization finished\n\r");
 }
 
 void YKIdleTask(void) {
+ printString("-in Idle Task\n\r");
  while(1) {
   YKEnterMutex();
   YKIdleCount = YKIdleCount+1;
@@ -208,75 +209,55 @@ void YKIdleTask(void) {
  }
 }
 
-void YKNewTask(void (* task)(void), unsigned int *taskStack, unsigned char priority) {
-
- TCBptr tmp, tmp2;
-
-
- YKCtxSwCount++;
-
- tmp = YKAvailTCBList;
-    YKAvailTCBList = tmp->next;
-
- tmp->startingAddress = task;
- tmp->stackptr = taskStack;
- tmp->priority = priority;
-
- *(taskStack-1) = 0x0200;
- *(taskStack-2) = 0;
- *(taskStack-3) = (int)task;
- *(taskStack-4) = (int)&taskStack[0];
- *(taskStack-5) = 0;
- *(taskStack-6) = 0;
- *(taskStack-7) = 0;
- *(taskStack-8) = 0;
- *(taskStack-9) = 0;
- *(taskStack-10) = 0;
- *(taskStack-11) = 0;
- *(taskStack-12) = 0;
+void YKNewTask(void (* task)(void), void *taskStack, unsigned char priority) {
 
 
 
+ TCBptr insertion, iter;
 
+
+
+ insertion->startingAddress = task;
+ insertion->stackptr = taskStack;
+ insertion->priority = priority;
+# 109 "yakc.c"
  if (YKRdyList == 0) {
-  YKRdyList = tmp;
-  tmp->next = 0;
-  tmp->prev = 0;
+  YKRdyList = insertion;
+  insertion->next = 0;
+  insertion->prev = 0;
 
    }
    else {
-  tmp2 = YKRdyList;
-  while (tmp2->priority < tmp->priority)
-   tmp2 = tmp2->next;
-  if (tmp2->prev == 0)
-   YKRdyList = tmp;
-  else
-   tmp2->prev->next = tmp;
-  tmp->prev = tmp2->prev;
-  tmp->next = tmp2;
-  tmp2->prev = tmp;
+  iter = YKRdyList;
+  while (iter->next != 0 && iter->next->priority < insertion->priority) {
+   iter = iter->next;
+  }
+  if (iter->next != 0) {
+   iter->next->prev = insertion;
+  }
+  insertion->next = iter->next;
+  iter->next = insertion;
+  insertion->prev = iter;
+
     }
 
 
 
 
  printString("  priority: ");
- printInt(priority);
+ printChar(priority);
  printString("\n\r");
  printString("  YKCurTask->priority: ");
- printInt(YKCurTask->priority);
+ printChar(YKCurTask->priority);
  printString("\n\r");
- printString("  tmp->priority: ");
- printInt(tmp->priority);
- printString("\n\r");
- if (priority < YKCurTask->priority) {
+ if (YKCurTask != 0 && priority < YKCurTask->priority) {
 
   YKScheduler();
  } else {
   printString("new task created, but scheduler not called\n\r");
  }
  printString("  YKCurTask->priority is now: ");
- printInt(YKCurTask->priority);
+ printChar(YKCurTask->priority);
  printString("\n\r");
 }
 
@@ -297,9 +278,10 @@ void YKScheduler() {
  printString("  YKRdyList->priority: ");
  printInt(YKRdyList->priority);
  printString("\n\r");
- if (YKCurTask->priority != YKRdyList->priority) {
+ if (YKCurTask != YKRdyList) {
   if (running) {
    printString("dispatcher called\n\r");
+   YKCtxSwCount++;
    YKDispatcher();
   } else {
    printString("dispatcher NOT called\n\r");

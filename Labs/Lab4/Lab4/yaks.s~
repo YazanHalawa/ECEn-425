@@ -54,6 +54,7 @@ YKDispatcher:
 	pop		cx
 	pop		bx
 	pop		ax
+	mov	sp, bp
 	pop bp
 	iret
 

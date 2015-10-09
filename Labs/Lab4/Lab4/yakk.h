@@ -11,7 +11,7 @@ void YKExitMutex(void);
 
 void YKIdleTask(void);
 
-void YKNewTask(void (* task)(void), unsigned int *taskStack, unsigned char priority);
+void YKNewTask(void (* task)(void), void *taskStack, unsigned char priority);
 
 void YKRun(void);
 
