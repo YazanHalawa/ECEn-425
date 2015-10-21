@@ -1,20 +1,20 @@
 #####################################################################
 # ECEn 425 Lab 3 Makefile
 
-lab3.bin:	lab3final.s
-		nasm lab3final.s -o lab3.bin -l lab3.lst
+hw6.bin:	hw6final.s
+		nasm hw6final.s -o hw6.bin -l hw6.lst
 
-lab3final.s:	clib.s myisr.s myinth.s primes.s
-		cat clib.s myisr.s myinth.s primes.s > lab3final.s
+hw6final.s:	clib.s myisr.s myinth.s hw6.s
+		cat clib.s myisr.s myinth.s hw6.s > hw6final.s
 
 myinth.s:	myinth.c
 		cpp -xc++ myinth.c myinth.i
 		c86 -g myinth.i myinth.s
 
-primes.s:	primes.c
-		cpp -xc++ primes.c primes.i
-		c86 -g primes.i primes.s
+hw6.s:		HW6.c
+		cpp -xc++ HW6.c hw6.i
+		c86 -g hw6.i hw6.s
 
 clean:
-		rm lab3.bin lab3.lst lab3final.s myinth.s myinth.i \
-		primes.s primes.i
+		rm hw6.bin hw6.lst hw6final.s myinth.s myinth.i \
+		hw6.s hw6.i
