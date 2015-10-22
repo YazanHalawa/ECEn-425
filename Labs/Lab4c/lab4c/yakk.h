@@ -1,5 +1,5 @@
 #define IDLE_STACK_SIZE 1024
-#define MAXTASKS 3	// What should this value be...?
+#define MAXTASKS 6	// What should this value be...?
 #define READY 0
 #define RUNNING 1
 #define BLOCKED 2
