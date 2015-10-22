@@ -4,9 +4,6 @@ reset:
 tick:
 	call	YKSaveContext
 	call	YKEnterISR
-	;mov		bp, sp
-	;mov		ax, [bp+18]
-	;or		al, 0xfe
 	sti 			; enable interrupts
 	call	YKTickHandler
 	call	tick_inth
@@ -20,9 +17,6 @@ tick:
 keyboard:
 	call	YKSaveContext
 	call	YKEnterISR
-	;mov		bp, sp
-	;mov		ax, [bp+18]
-	;or		al, 0xfc
 	sti				; enable interrupts
 	call	keyboard_inth
 	cli 			; disable interrupts
