@@ -11,7 +11,7 @@
 #define FLAGB 0x0200
 #define ContextSaved 0
 #define ContextNotSaved 1
-#define MAXSEMS 
+#define MAXSEMS 4
 
 
 //extern unsigned int YKIdleCount;
