@@ -1,5 +1,22 @@
 #include "yakk.h"
 
+TCBptr YKRdyList;       /* a list of TCBs of all ready tasks*/
+TCBptr YKCurTask;       //points to current task
+                //   in order of decreasing priority 
+TCBptr YKSuspList;      /* tasks delayed or suspended */
+TCBptr YKAvailTCBList;      /* a list of available TCBs */
+TCB    YKTCBArray[MAXTASKS+1];  /* array to allocate all needed TCBs (extra one is for the idle task) */
+
+unsigned int running;
+int idleStk[IDLE_STACK_SIZE];
+unsigned int YKIdleCount;
+unsigned int YKCtxSwCount;
+unsigned int nestingLevel;
+unsigned int YKTickNum;
+
+YKSEM YKSems[MAXSEMS]; // array of semaphores
+int YKAvaiSems; // unused semaphores
+
 void YKInitialize(){
     int i;
     YKEnterMutex();
@@ -87,9 +104,9 @@ void YKNewTask(void (* task)(void), void *stackptr, unsigned char priority){
     }   
     insertion->stackptr = (void *)stackIter;
     if(running == 1) {
-        YKScheduler(ContextSaved);
-        YKExitMutex();
-    }  
+        YKScheduler(ContextNotSaved);
+    } 
+    YKExitMutex(); 
 }
 
 void YKRun(){
@@ -99,21 +116,14 @@ void YKRun(){
 }
 
 void YKScheduler(int saveContext){
-//YKEnterMutex();
     if(YKRdyList != YKCurTask){  
         YKCtxSwCount++; 
         YKDispatcher(saveContext);
-    } 
-//YKExitMutex();
+    }
 }
 
 void YKDelayTask(unsigned count){
     TCBptr temp;
-    // Bookkeeping for change of state
-    // Call the scheduler after specified number of ticks
-    // if (count == 0) {
-    //     return;
-    // }
     YKEnterMutex();
     temp = YKRdyList; // Hold the first ready task
     // Remove it from Ready list
@@ -135,19 +145,13 @@ void YKDelayTask(unsigned count){
 
 void YKTickHandler(void){
     TCBptr temp, temp2, next;
-    // while (temp != NULL){
-    //     printInt(temp->priority);
-    //     printNewLine();
-    //     temp = temp->next;
-    // }
+    YKEnterMutex();
     YKTickNum++;
     print("\nTick ", 6);
     printInt(YKTickNum);
     printNewLine();
-    //YKEnterMutex();
     temp = YKSuspList;
     while (temp != NULL){
-        //printString("loop tick\n");
         temp->delay--;
         if (temp->delay == 0){ // If the task has delayed the appropriate amount of ticks
             temp->state = READY; // Make the task ready
@@ -165,7 +169,6 @@ void YKTickHandler(void){
             // Put in Rdy List
             temp2 = YKRdyList;
             while (temp2->priority < temp->priority){
-                //printString("loop prio tick\n");
                 temp2 = temp2->next;
             }
             if (temp2->prev == NULL){
@@ -179,13 +182,12 @@ void YKTickHandler(void){
             temp2->prev = temp;
             // Update the next pointer 
             temp = next;
-            //printString("end of loop tick\n");
         }
         else{
             temp = temp->next;
         }
     }
-    //YKExitMutex();
+    YKExitMutex();
 }
 
 void YKEnterISR() {
@@ -193,13 +195,10 @@ void YKEnterISR() {
 }
 
 void YKExitISR() {
-//YKEnterMutex();
     nestingLevel--;
     if (nestingLevel == 0 && running) {
-        //YKExitMutex();
         YKScheduler(ContextSaved);
     }
-//YKExitMutex();
 }
 
 YKSEM* YKSemCreate(int initialValue){
@@ -285,14 +284,13 @@ void YKSemPost(YKSEM *semaphore){
     // remove from pending list
     temp = semaphore->blockedOn;
     semaphore->blockedOn = temp->next;
-    if (semaphore->blockedOn!=NULL)
+    if (semaphore->blockedOn != NULL)
         semaphore->blockedOn->prev = NULL;
     // modify TCB of that task, place in ready list
     temp->state = READY;
     // Put in Rdy List
     temp2 = YKRdyList;
     while (temp2->priority < temp->priority){
-        //printString("loop prio tick\n");
         temp2 = temp2->next;
     }
     if (temp2->prev == NULL){

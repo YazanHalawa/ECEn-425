@@ -1,5 +1,5 @@
 #####################################################################
-# ECEn 425 Lab 4d Makefile
+# ECEn 425 Lab 5 Makefile
 
 lab5.bin:	labfinal.s
 		nasm labfinal.s -o lab5.bin -l lab5.lst

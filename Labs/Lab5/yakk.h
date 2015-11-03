@@ -1,10 +1,11 @@
-#pragma once
+#ifndef YAKK_H_
+#define YAKK_H_
 
 #include "clib.h" 
 #include "yaku.h"
 
 #define IDLE_STACK_SIZE 2048
-#define MAXTASKS 6	// What should this value be...?
+#define MAXTASKS 6	
 #define READY 0
 #define RUNNING 1
 #define BLOCKED 2
@@ -12,10 +13,6 @@
 #define ContextSaved 0
 #define ContextNotSaved 1
 #define MAXSEMS 4
-
-
-//extern unsigned int YKIdleCount;
-//extern unsigned int YKCtxSwCount;
 
 typedef struct taskblock *TCBptr;
 typedef struct taskblock
@@ -35,22 +32,8 @@ typedef struct sem
 	TCBptr blockedOn;
 } YKSEM;
 
-TCBptr YKRdyList;       /* a list of TCBs of all ready tasks*/
-TCBptr YKCurTask;       //points to current task
-                //   in order of decreasing priority 
-TCBptr YKSuspList;      /* tasks delayed or suspended */
-TCBptr YKAvailTCBList;      /* a list of available TCBs */
-TCB    YKTCBArray[MAXTASKS+1];  /* array to allocate all needed TCBs (extra one is for the idle task) */
-
-unsigned int running;
-int idleStk[IDLE_STACK_SIZE];
-unsigned int YKIdleCount;
-unsigned int YKCtxSwCount;
-unsigned int nestingLevel;
-unsigned int YKTickNum;
-
-YKSEM YKSems[MAXSEMS]; // array of semaphores
-int YKAvaiSems; // unused semaphores
+extern unsigned int YKIdleCount;
+extern unsigned int YKCtxSwCount;
 
 void YKInitialize();
 
@@ -84,3 +67,5 @@ void YKSemPend(YKSEM *semaphore);
 
 void YKSemPost(YKSEM *semaphore);
 
+
+#endif /* YAKK_H_ */
