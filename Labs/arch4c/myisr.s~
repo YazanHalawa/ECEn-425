@@ -1,0 +1,33 @@
+reset:
+	call	reset_inth
+
+tick:
+	call	YKSaveContext
+	call	YKEnterISR
+	mov    bp, sp        ; (2) revise IMR  --  (get it from stack first)
+  	mov    ax, [bp+18]
+    	or      al, 0xfe    ;     disable interrupts at current and lower priorities
+	sti 			; enable interrupts
+	call	YKTickHandler
+	call	tick_inth
+	cli 			; disable interrupts
+	mov	al, 0x20	; Load nonspecific EOI value (0x20) into register al
+	out	0x20, al	; Write EOI to PIC (port 0x20)
+	call	YKExitISR
+	call	YKRestoreContext
+	iret
+
+keyboard:
+	call	YKSaveContext
+	call	YKEnterISR
+	mov    bp, sp        ; (2) revise IMR  --  (get it from stack first)
+    	mov    ax, [bp+18]
+    	or      al, 0xfc    ;     disable interrupts at current and lower priorities
+	sti				; enable interrupts
+	call	keyboard_inth
+	cli 			; disable interrupts
+	mov	al, 0x20	; Load nonspecific EOI value (0x20) into register al
+	out	0x20, al	; Write EOI to PIC (port 0x20)
+	call	YKExitISR
+	call	YKRestoreContext
+	iret

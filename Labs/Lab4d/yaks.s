@@ -37,7 +37,7 @@ YKDispatcher:
 	
 	push bp 	
 	mov bp, sp	
-	cmp	word[bp+4], 0		; compare arg1 with 0
+	cmp	byte[bp+4], 0		; compare arg1 with 0
 	pop bp
 	je	YKDispatcherExtra ; if arg1 == 0, do the extra dispatch code.
 	
@@ -47,8 +47,8 @@ YKDispatcher:
 
 	mov	bp, sp
 	mov	bx, [bp+20]
-	mov	cx, [bp+24]
-	mov	[bp+24], cx
+	mov	ax, [bp+24]
+	mov	[bp+20], ax
 	or bx, 0x00200
 	mov	[bp+24], bx
 

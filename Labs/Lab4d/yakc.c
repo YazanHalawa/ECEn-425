@@ -23,28 +23,26 @@ TCB    YKTCBArray[MAXTASKS+1];  /* array to allocate all needed TCBs (extra one 
 
 unsigned int running;
 int idleStk[IDLE_STACK_SIZE];
-int saveContext;
 unsigned int YKIdleCount;
 unsigned int YKCtxSwCount;
 unsigned int nestingLevel;
 unsigned int YKTickNum;
 
 
-void YKInitialize (){
+void YKInitialize(){
     int i;
     YKEnterMutex();
     YKIMRInit(0x00);
     running = 0;
-    saveContext = 0;
     YKIdleCount = 0;
     YKCtxSwCount = 0;
-    nestingLevel = 0;
-    YKCurTask = NULL;
+    YKCurTask = NULL; 
     YKRdyList = NULL;
     YKSuspList = NULL;
+    nestingLevel = 0;
     YKTickNum = 0;
-	
-	// Initialize locations for TCB
+    
+    // Initialize locations for TCB
     YKAvailTCBList = &(YKTCBArray[0]);
     for (i = 0; i < MAXTASKS; i++){
         YKTCBArray[i].next = &(YKTCBArray[i+1]);
@@ -58,10 +56,9 @@ void YKInitialize (){
 
 void YKIdleTask(){
     while(1){
-		YKEnterMutex();
-    	YKIdleCount++;
-		YKExitMutex();
-	
+        YKEnterMutex();
+        YKIdleCount++;
+        YKExitMutex();
     }
 
 }
@@ -107,52 +104,50 @@ void YKNewTask(void (* task)(void), void *stackptr, unsigned char priority){
     stackIter = (unsigned *)stackptr;
     stackIter -=13;
 
-	for(i=0; i<13; i++) {
-		if (i == 10) {
-			stackIter[i] = (unsigned)task;
-		} else if (i == 12) {
-			stackIter[i] = FLAGB;	// Set the interrupt flag
-		} else {
-			stackIter[i] = 0;
-		}
-	}	
+    for(i=0; i<13; i++) {
+        if (i == 10) {
+            stackIter[i] = (unsigned)task;
+        } else if (i == 12) {
+            stackIter[i] = FLAGB;   // Set the interrupt flag
+        } else {
+            stackIter[i] = 0;
+        }
+    }   
     insertion->stackptr = (void *)stackIter;
-
-	if(running == 1) {
- 		YKScheduler(saveContext);
-	} else {
-		//printString("new task created, but scheduler not called\n\r");
-	}    
-    YKExitMutex();
+    if(running == 1) {
+        YKScheduler(ContextSaved);
+        YKExitMutex();
+    }  
 }
 
 void YKRun(){
-	// Run the tasks
+    // Run the tasks
     running = 1;
-    saveContext = 1;
-    YKScheduler(saveContext);
+    YKScheduler(ContextNotSaved);
 }
 
 void YKScheduler(int saveContext){
+//YKEnterMutex();
     if(YKRdyList != YKCurTask){  
         YKCtxSwCount++; 
         YKDispatcher(saveContext);
-    }
+    } 
+//YKExitMutex();
 }
 
 void YKDelayTask(unsigned count){
     TCBptr temp;
-	// Bookkeeping for change of state
-	// Call the scheduler after specified number of ticks
-	if (count == 0) {
-		return;
-	}
-	YKEnterMutex();
+    // Bookkeeping for change of state
+    // Call the scheduler after specified number of ticks
+    // if (count == 0) {
+    //     return;
+    // }
+    YKEnterMutex();
     temp = YKRdyList; // Hold the first ready task
     // Remove it from Ready list
     YKRdyList = temp->next; 
     if (YKRdyList != NULL)
-	   YKRdyList->prev = NULL;
+       YKRdyList->prev = NULL;
     temp->state = BLOCKED;
     temp->delay = count;
 
@@ -162,16 +157,25 @@ void YKDelayTask(unsigned count){
     temp->prev = NULL;
     if (temp->next != NULL)
         temp->next->prev = temp;
-    saveContext = 1;
+    YKScheduler(ContextNotSaved);
     YKExitMutex();
-	YKScheduler(saveContext);
 }
 
 void YKTickHandler(void){
     TCBptr temp, temp2, next;
+    // while (temp != NULL){
+    //     printInt(temp->priority);
+    //     printNewLine();
+    //     temp = temp->next;
+    // }
     YKTickNum++;
+    print("\nTick ", 6);
+    printInt(YKTickNum);
+    printNewLine();
+    //YKEnterMutex();
     temp = YKSuspList;
     while (temp != NULL){
+        //printString("loop tick\n");
         temp->delay--;
         if (temp->delay == 0){ // If the task has delayed the appropriate amount of ticks
             temp->state = READY; // Make the task ready
@@ -189,10 +193,10 @@ void YKTickHandler(void){
             // Put in Rdy List
             temp2 = YKRdyList;
             while (temp2->priority < temp->priority){
+                //printString("loop prio tick\n");
                 temp2 = temp2->next;
             }
             if (temp2->prev == NULL){
-                printString("adding\n");
                 YKRdyList = temp;
             }
             else{
@@ -203,21 +207,25 @@ void YKTickHandler(void){
             temp2->prev = temp;
             // Update the next pointer 
             temp = next;
+            //printString("end of loop tick\n");
         }
         else{
             temp = temp->next;
         }
     }
+    //YKExitMutex();
 }
 
 void YKEnterISR() {
-	nestingLevel++;
+    nestingLevel++;
 }
 
 void YKExitISR() {
-	nestingLevel--;
-	if (nestingLevel == 0) {
-        saveContext = 0;
-		YKScheduler(saveContext);
-	}
+//YKEnterMutex();
+    nestingLevel--;
+    if (nestingLevel == 0 && running) {
+        //YKExitMutex();
+        YKScheduler(ContextSaved);
+    }
+//YKExitMutex();
 }

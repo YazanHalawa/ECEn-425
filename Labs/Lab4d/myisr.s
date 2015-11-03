@@ -4,10 +4,11 @@ reset:
 tick:
 	call	YKSaveContext
 	call	YKEnterISR
+
 	sti 			; enable interrupts
 	call	YKTickHandler
-	call	tick_inth
 	cli 			; disable interrupts
+
 	mov	al, 0x20	; Load nonspecific EOI value (0x20) into register al
 	out	0x20, al	; Write EOI to PIC (port 0x20)
 	call	YKExitISR
@@ -17,9 +18,11 @@ tick:
 keyboard:
 	call	YKSaveContext
 	call	YKEnterISR
+
 	sti				; enable interrupts
 	call	keyboard_inth
 	cli 			; disable interrupts
+
 	mov	al, 0x20	; Load nonspecific EOI value (0x20) into register al
 	out	0x20, al	; Write EOI to PIC (port 0x20)
 	call	YKExitISR
