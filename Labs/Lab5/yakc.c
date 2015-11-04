@@ -116,10 +116,12 @@ void YKRun(){
 }
 
 void YKScheduler(int saveContext){
+YKEnterMutex();
     if(YKRdyList != YKCurTask){  
         YKCtxSwCount++; 
         YKDispatcher(saveContext);
     }
+YKExitMutex();
 }
 
 void YKDelayTask(unsigned count){
@@ -195,6 +197,7 @@ void YKEnterISR() {
 }
 
 void YKExitISR() {
+
     nestingLevel--;
     if (nestingLevel == 0 && running) {
         YKScheduler(ContextSaved);
