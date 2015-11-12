@@ -313,7 +313,6 @@ void YKSemPost(YKSEM *semaphore){
 }
 
 YKQ *YKQCreate(void **start, unsigned size){
-    YKQ* newQ;
     YKEnterMutex();
     if (YKQAvailCount <= 0){
         YKExitMutex();
@@ -381,9 +380,9 @@ void *YKQPend(YKQ *queue){
                 else
                 temp2->next = temp;
             }
-            YKScheduler(ContextNotSaved);
-            goto TOP;
         }
+        YKScheduler(ContextNotSaved);
+        goto TOP;
     }
     YKExitMutex();
     return tempMsg;
