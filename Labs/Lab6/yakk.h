@@ -5,7 +5,7 @@
 #include "yaku.h"
 
 #define IDLE_STACK_SIZE 2048
-#define MAXTASKS 6	
+#define MAXTASKS 3	
 #define READY 0
 #define RUNNING 1
 #define BLOCKED 2
