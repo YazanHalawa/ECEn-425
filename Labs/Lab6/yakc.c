@@ -13,6 +13,8 @@ unsigned int YKIdleCount;
 unsigned int YKCtxSwCount;
 unsigned int nestingLevel;
 unsigned int YKTickNum;
+int YKQAvailCount; // number of available queues
+YKQ YKQs[MAXQUEUES]; // array of queues
 
 YKSEM YKSems[MAXSEMS]; // array of semaphores
 int YKAvaiSems; // unused semaphores
@@ -30,6 +32,7 @@ void YKInitialize(){
     nestingLevel = 0;
     YKTickNum = 0;
     YKAvaiSems = MAXSEMS;
+    YKQAvailCount = MAXQUEUES;
     
     // Initialize locations for TCB
     YKAvailTCBList = &(YKTCBArray[0]);
@@ -312,40 +315,125 @@ void YKSemPost(YKSEM *semaphore){
 YKQ *YKQCreate(void **start, unsigned size){
     YKQ* newQ;
     YKEnterMutex();
-    newQ->baseAddress = start;
-    newQ->numOfEntries = size;
-    newQ->addLoc = start;
-    newQ->removeLoc = NULL;
-    newQ->currentSize = newQ->numOfEntries;
+    if (YKQAvailCount <= 0){
+        YKExitMutex();
+        exit (0xff);
+    }
+    YKQAvailCount--;
+    YKQs[YKQAvailCount].baseAddress = (void **)start;
+    YKQs[YKQAvailCount].numOfEntries = size;
+    YKQs[YKQAvailCount].addLoc = 0;
+    YKQs[YKQAvailCount].removeLoc = 0;
+    YKQs[YKQAvailCount].blockedOn = NULL;
+    YKQs[YKQAvailCount].numOfMsgs = 0;
     YKExitMutex();
-    return newQ;
+    return &(YKQs[YKQAvailCount]);
 }
 
 void *YKQPend(YKQ *queue){
+    void * tempMsg;
+    TCBptr temp, temp2, iter;
+    TOP:
     YKEnterMutex();
-    if (queue->currentSize != 0){ // not empty
+    if (queue->numOfMsgs > 0){ // not empty
         // remove oldest message
-        queue->removeLoc--; // ???
-        queue->currentSize--;
-        return *(queue->removeLoc+1);
+        tempMsg = queue->baseAddress[queue->removeLoc];
+        queue->removeLoc++;
+        // handle roll over
+        if (queue->removeLoc >= queue->numOfEntries){
+            queue->removeLoc = 0;
+        }
+        queue->numOfMsgs--;
     }
-
-    else { // is empty
-
+    else {
+        // Remove calling task's TCB from ready list
+        temp = YKRdyList; // Hold the first ready task
+        // Remove it from Ready list
+        YKRdyList = temp->next; 
+        if (YKRdyList != NULL)
+            YKRdyList->prev = NULL;
+        // modify TCB, put in suspended list
+            temp->state = BLOCKED;
+        }
+        // Put task at queue's blocked list
+        if (queue->blockedOn == NULL){
+            queue->blockedOn = temp;
+            temp->next = NULL;
+            temp->prev = NULL;
+        }
+        else{
+            iter = queue->blockedOn;
+            temp2 = NULL;
+            while (iter != NULL && iter->priority < temp->priority){
+                temp2 = iter;
+                iter = iter->next;
+            }
+            if (iter == NULL){//At end
+                temp2->next = temp;
+                temp->prev = temp;
+                temp->next = NULL;
+            }
+            else{ // insert before iterator
+                temp->next = iter;
+                temp->prev = temp2;
+                iter->prev = temp;
+                if (temp2 == NULL)//inserted at beginning of list
+                    queue->blockedOn = temp;
+                else
+                temp2->next = temp;
+        }
+        YKScheduler(ContextNotSaved);
+        YKExitMutex();
+        goto TOP;
     }
     YKExitMutex();
+    return tempMsg;
+
 }
 
 int YKQPost(YKQ *queue, void *msg){
-    if (queue->currentSize != queue->numOfEntries){
-        // Put a message in the message queue
-        queue->addLoc = msg;
+    TCBptr temp, temp2;
+    YKEnterMutex();
+    if (queue->numOfMsgs < queue->numOfEntries){
+        queue->baseAddress[queue->addLoc] = msg;
         // increment the add location
         queue->addLoc++;
-        queue->currentSize++;
+        // handle roll-over
+        if (queue->addLoc >= queue->numOfEntries)
+            queue->addLoc = 0;
+        queue->numOfMsgs++;
+        // remove from pending list
+        if (queue->blockedOn != NULL){
+            temp = queue->blockedOn;
+            queue->blockedOn = temp->next;
+            if (queue->blockedOn != NULL)
+                queue->blockedOn->prev = NULL; 
+            // modify TCB of that task, place in ready list
+            temp->state = READY;
+            // Put in Rdy List
+            temp2 = YKRdyList;
+            while (temp2->priority < temp->priority){
+                temp2 = temp2->next;
+            }
+            if (temp2->prev == NULL){
+                YKRdyList = temp;
+            }
+            else{
+                temp2->prev->next = temp;
+            }
+            temp->prev = temp2->prev;
+            temp->next = temp2;
+            temp2->prev = temp;
+            // call scheduler if not called from ISR
+            if (nestingLevel == 0)
+                YKScheduler(ContextNotSaved);
+            }
+        // enable interrupts
+        YKExitMutex();
         return 1;
     }
     else{
+        YKExitMutex();
         return 0;
     }
 

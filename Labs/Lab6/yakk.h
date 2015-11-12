@@ -5,7 +5,7 @@
 #include "yaku.h"
 
 #define IDLE_STACK_SIZE 2048
-#define MAXTASKS 3	
+#define MAXTASKS 6	
 #define READY 0
 #define RUNNING 1
 #define BLOCKED 2
@@ -13,6 +13,7 @@
 #define ContextSaved 0
 #define ContextNotSaved 1
 #define MAXSEMS 4
+#define MAXQUEUES 1
 
 typedef struct taskblock *TCBptr;
 typedef struct taskblock
@@ -36,9 +37,10 @@ typedef struct ykq
 {
 	void ** baseAddress;
 	int numOfEntries;
-	int currentSize;
-	void ** addLoc;
-	void ** removeLoc;
+	int addLoc;
+	int removeLoc;
+	TCBptr blockedOn;
+	int numOfMsgs;
 } YKQ;
 
 extern unsigned int YKTickNum;
