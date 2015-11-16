@@ -77,6 +77,8 @@ void YKNewTask(void (* task)(void), void *stackptr, unsigned char priority){
     insertion->state = READY;
     insertion->priority = priority;
     insertion->delay = 0;
+    insertion->flags = 0;
+    insertion->waitMode = 0;
  
     if (YKRdyList == NULL)  /* is this first insertion? */
     {
@@ -454,17 +456,141 @@ YKEVENT *YKEventCreate(unsigned initialValue){
     return &(YKEvents[YKAvaiEvents]);
 }
 
+bool checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
+    bool conditionMet = false;
+    YKEnterMutex();
+    if (waitMode == EVENT_WAIT_ALL){
+        conditionMet = true;
+        // check all bits are asserted
+        for (i = 0; i < 16; i++){
+            if ((eventMask & BIT(n))){
+                if (!(event->flags & BIT(n))){
+                    conditionMet = false;
+                }
+            }
+        }
+    }
+    else if (waitMode == EVENT_WAIT_ANY){
+        for (i = 0; i < 16; i++){
+            if (eventMask & BIT(n)){
+                if (event->flags & BIT(n)){
+                    conditionMet = true;
+                }
+            }
+        }
+    }
+    else{
+        YKExitMutex();
+        exit(0xff);
+    }
+    YKExitMutex();
+    return conditionMet;
+}
 unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
+    bool conditionMet = false;
+    int i;
+    YKEnterMutex();
+    // ------- Test if Conditions are met --------//
+    conditionMet = checkConditions(event, eventMask, waitMode);
+
+    // -------- If condition met, return. Else, block --------//
+    if (conditionMet){
+        YKExitMutex();
+        return event->flags;
+    }
+    else{
+        // Remove calling task's TCB from ready list
+        temp = YKRdyList; // Hold the first ready task
+        // Remove it from Ready list
+        YKRdyList = temp->next; 
+        if (YKRdyList != NULL)
+            YKRdyList->prev = NULL;
+        // modify TCB, put in suspended list
+            temp->state = BLOCKED;
+            temp->flags = event->flags;
+            temp->waitMode = waitMode;
+        // Put task at queue's blocked list
+        if (event->waitingOn == NULL){
+            event->waitingOn = temp;
+            temp->next = NULL;
+            temp->prev = NULL;
+        }
+        else{
+            iter = event->waitingOn;
+            temp2 = NULL;
+            while (iter != NULL && iter->priority < temp->priority){
+                temp2 = iter;
+                iter = iter->next;
+            }
+            if (iter == NULL){//At end
+                temp2->next = temp;
+                temp->prev = temp;
+                temp->next = NULL;
+            }
+            else{ // insert before iterator
+                temp->next = iter;
+                temp->prev = temp2;
+                iter->prev = temp;
+                if (temp2 == NULL)//inserted at beginning of list
+                    event->waitingOn = temp;
+                else
+                temp2->next = temp;
+            }
+        }
+    }
+    YKExitMutex();
+    return event->flags;
 
 }
 
 void YKEventSet(YKEVENT *event, unsigned eventMask){
     int i;
+    bool taskMadeReady = false;
+    TCBptr iter;
+    YKEnterMutex();
+    // ----- Set Flag Group ---- //
     for (i = 0; i < 16; i++){
         if (eventMask & BIT(i)){
             event->flags |= BIT(i);
         }
     }
+
+    // ----- check Conditions ---- //
+    iter = event->waitingOn;
+    while (iter != NULL){
+        // if conditions are met for that task, put in ready list
+        if (checkConditions(event, iter->flags, iter->waitMode)){
+            // remove from pending list
+            if (event->waitingOn != NULL){
+                temp = event->waitingOn;
+                event->waitingOn = temp->next;
+                if (event->waitingOn != NULL)
+                    event->waitingOn->prev = NULL; 
+                // modify TCB of that task, place in ready list
+                temp->state = READY;
+                // Put in Rdy List
+                temp2 = YKRdyList;
+                while (temp2->priority < temp->priority){
+                    temp2 = temp2->next;
+                }
+                if (temp2->prev == NULL){
+                    YKRdyList = temp;
+                }
+                else{
+                    temp2->prev->next = temp;
+                }
+                temp->prev = temp2->prev;
+                temp->next = temp2;
+                temp2->prev = temp;
+            }
+            taskMadeReady = true;
+        }
+        iter = iter->next;
+    }
+    // call scheduler if not called from ISR and a task was made ready
+    if (taskMadeReady && nestingLevel == 0)
+        YKScheduler(ContextNotSaved);
+    YKExitMutex();
 }
 
 void YKEventReset(YKEVENT *event, unsigned eventMask){

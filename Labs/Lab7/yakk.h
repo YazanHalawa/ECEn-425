@@ -31,9 +31,8 @@ typedef struct taskblock
     unsigned delay;          /* #ticks yet to wait */
     TCBptr next;        /* forward ptr for dbl linked list */
     TCBptr prev;        /* backward ptr for dbl linked list */
-    YKEVENT* eventGroup;
-    int flags[16];
-
+    unsigned flags;
+    int waitMode;
 }  TCB;
 
 typedef struct sem
