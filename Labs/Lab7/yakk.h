@@ -5,7 +5,7 @@
 #include "yaku.h"
 
 #define IDLE_STACK_SIZE 2048
-#define MAXTASKS 3	
+#define MAXTASKS 4	
 #define READY 0
 #define RUNNING 1
 #define BLOCKED 2
@@ -14,6 +14,12 @@
 #define ContextNotSaved 1
 #define MAXSEMS 4
 #define MAXQUEUES 1
+#define MAXEVENTS 2
+#define EVENT_WAIT_ANY 0
+#define EVENT_WAIT_ALL 1
+// Macro for accessing specific bits in the unsigned value
+#define BIT(n) (1 << n)
+
 
 typedef struct taskblock *TCBptr;
 typedef struct taskblock
@@ -25,6 +31,9 @@ typedef struct taskblock
     unsigned delay;          /* #ticks yet to wait */
     TCBptr next;        /* forward ptr for dbl linked list */
     TCBptr prev;        /* backward ptr for dbl linked list */
+    YKEVENT* eventGroup;
+    int flags[16];
+
 }  TCB;
 
 typedef struct sem
@@ -42,6 +51,12 @@ typedef struct ykq
 	TCBptr blockedOn;
 	int numOfMsgs;
 } YKQ;
+
+typedef struct eventGroup
+{
+	unsigned flags; // 16-bit value to represent the flags
+	TCBptr waitingOn;
+} YKEVENT;
 
 extern unsigned int YKTickNum;
 extern unsigned int YKIdleCount;

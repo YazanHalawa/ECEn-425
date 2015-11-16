@@ -19,6 +19,9 @@ YKQ YKQs[MAXQUEUES]; // array of queues
 YKSEM YKSems[MAXSEMS]; // array of semaphores
 int YKAvaiSems; // unused semaphores
 
+YKEVENT YKEvents[MAXEVENTS]; // array of event groups
+int YKAvaiEvents; // unused event groups
+
 void YKInitialize(){
     int i;
     YKEnterMutex();
@@ -33,6 +36,7 @@ void YKInitialize(){
     YKTickNum = 0;
     YKAvaiSems = MAXSEMS;
     YKQAvailCount = MAXQUEUES;
+    YKAvaiEvents = MAXEVENTS;
     
     // Initialize locations for TCB
     YKAvailTCBList = &(YKTCBArray[0]);
@@ -438,7 +442,16 @@ int YKQPost(YKQ *queue, void *msg){
 }
 
 YKEVENT *YKEventCreate(unsigned initialValue){
-
+    YKEnterMutex();
+    if (YKAvaiEvents <= 0){
+        YKExitMutex();
+        exit (0xff);
+    }
+    YKAvaiEvents--;
+    YKEvents[YKAvaiEvents].flags = initialValue;
+    YKEvents[YKAvaiEvents].waitingOn = NULL;
+    YKExitMutex();
+    return &(YKEvents[YKAvaiEvents]);
 }
 
 unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
@@ -446,9 +459,20 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
 }
 
 void YKEventSet(YKEVENT *event, unsigned eventMask){
-
+    int i;
+    for (i = 0; i < 16; i++){
+        if (eventMask & BIT(i)){
+            event->flags |= BIT(i);
+        }
+    }
 }
 
 void YKEventReset(YKEVENT *event, unsigned eventMask){
-    
+    int i;
+    for (i = 0; i < 16; i++){
+        // If the specified bit is set in the mask, clear it in the event flags
+        if (eventMask & BIT(i)){
+            event->flags &= ~(BIT(i));
+        }
+    }
 }
