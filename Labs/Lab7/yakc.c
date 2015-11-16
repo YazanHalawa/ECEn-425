@@ -460,7 +460,7 @@ YKEVENT *YKEventCreate(unsigned initialValue){
 int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
     int conditionMet = 0;
     int i;
-    // YKEnterMutex();
+    YKEnterMutex();
     if (waitMode == EVENT_WAIT_ALL){
         conditionMet = 1;
         // check all bits are asserted
@@ -482,10 +482,10 @@ int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
         }
     }
     else{
-        // YKExitMutex();
+         YKExitMutex();
         exit(0xff);
     }
-    // YKExitMutex();
+    YKExitMutex();
     return conditionMet;
 }
 
@@ -497,6 +497,7 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
     // ------- Test if Conditions are met --------//
     conditionMet = checkConditions(event, eventMask, waitMode);
 
+    while(1){
     // -------- If condition met, return. Else, block --------//
     if (conditionMet){
         return event->flags;
@@ -541,8 +542,10 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
                 temp2->next = temp;
             }
         }
+        YKScheduler(ContextNotSaved);
         YKExitMutex();
     }
+}
     return event->flags;
 }
 

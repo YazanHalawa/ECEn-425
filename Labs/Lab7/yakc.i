@@ -606,7 +606,7 @@ YKEVENT *YKEventCreate(unsigned initialValue){
 int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
     int conditionMet = 0;
     int i;
-    
+    YKEnterMutex();
     if (waitMode == 1){
         conditionMet = 1;
         
@@ -628,10 +628,10 @@ int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
         }
     }
     else{
-        
+         YKExitMutex();
         exit(0xff);
     }
-    
+    YKExitMutex();
     return conditionMet;
 }
 
@@ -643,6 +643,7 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
     
     conditionMet = checkConditions(event, eventMask, waitMode);
 
+    while(1){
     
     if (conditionMet){
         return event->flags;
@@ -687,8 +688,10 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
                 temp2->next = temp;
             }
         }
+        YKScheduler(1);
         YKExitMutex();
     }
+}
     return event->flags;
 }
 
