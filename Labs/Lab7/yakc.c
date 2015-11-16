@@ -447,6 +447,7 @@ YKEVENT *YKEventCreate(unsigned initialValue){
     YKEnterMutex();
     if (YKAvaiEvents <= 0){
         YKExitMutex();
+        printString("not enough events\n");
         exit (0xff);
     }
     YKAvaiEvents--;
@@ -459,7 +460,7 @@ YKEVENT *YKEventCreate(unsigned initialValue){
 int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
     int conditionMet = 0;
     int i;
-    YKEnterMutex();
+    // YKEnterMutex();
     if (waitMode == EVENT_WAIT_ALL){
         conditionMet = 1;
         // check all bits are asserted
@@ -481,10 +482,10 @@ int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
         }
     }
     else{
-        YKExitMutex();
+        // YKExitMutex();
         exit(0xff);
     }
-    YKExitMutex();
+    // YKExitMutex();
     return conditionMet;
 }
 
@@ -492,16 +493,16 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
     int conditionMet = 0;
     int i;
     TCBptr temp, temp2, iter;
-    YKEnterMutex();
+
     // ------- Test if Conditions are met --------//
     conditionMet = checkConditions(event, eventMask, waitMode);
 
     // -------- If condition met, return. Else, block --------//
     if (conditionMet){
-        YKExitMutex();
         return event->flags;
     }
     else{
+        YKEnterMutex();
         // Remove calling task's TCB from ready list
         temp = YKRdyList; // Hold the first ready task
         // Remove it from Ready list
@@ -540,16 +541,15 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
                 temp2->next = temp;
             }
         }
+        YKExitMutex();
     }
-    YKExitMutex();
     return event->flags;
-
 }
 
 void YKEventSet(YKEVENT *event, unsigned eventMask){
     int i;
     int taskMadeReady = 0;
-    TCBptr iter, temp, temp2;
+    TCBptr iter, temp, temp2, next;
     YKEnterMutex();
     // ----- Set Flag Group ---- //
     for (i = 0; i < 16; i++){
@@ -564,31 +564,32 @@ void YKEventSet(YKEVENT *event, unsigned eventMask){
         // if conditions are met for that task, put in ready list
         if (checkConditions(event, iter->flags, iter->waitMode)){
             // remove from pending list
-            if (event->waitingOn != NULL){
-                temp = event->waitingOn;
-                event->waitingOn = temp->next;
-                if (event->waitingOn != NULL)
-                    event->waitingOn->prev = NULL; 
-                // modify TCB of that task, place in ready list
-                temp->state = READY;
-                // Put in Rdy List
-                temp2 = YKRdyList;
-                while (temp2->priority < temp->priority){
-                    temp2 = temp2->next;
-                }
-                if (temp2->prev == NULL){
-                    YKRdyList = temp;
-                }
-                else{
-                    temp2->prev->next = temp;
-                }
-                temp->prev = temp2->prev;
-                temp->next = temp2;
-                temp2->prev = temp;
+            next = iter->next;
+            if (iter->prev != NULL)
+                iter->prev->next = iter->next;
+            if (iter->next != NULL)
+                iter->next->prev = iter->prev;
+            // modify TCB of that task, place in ready list
+            iter->state = READY;
+            // Put in Rdy List
+            temp2 = YKRdyList;
+            while (temp2->priority < iter->priority){
+                temp2 = temp2->next;
             }
+            if (temp2->prev == NULL){
+                YKRdyList = iter;
+            }
+            else{
+                temp2->prev->next = iter;
+            }
+            iter->prev = temp2->prev;
+            iter->next = temp2;
+            temp2->prev = iter;
             taskMadeReady = 1;
+            iter = next;
+        } else {
+            iter = iter->next;
         }
-        iter = iter->next;
     }
     // call scheduler if not called from ISR and a task was made ready
     if (taskMadeReady && nestingLevel == 0)

@@ -593,6 +593,7 @@ YKEVENT *YKEventCreate(unsigned initialValue){
     YKEnterMutex();
     if (YKAvaiEvents <= 0){
         YKExitMutex();
+        printString("not enough events\n");
         exit (0xff);
     }
     YKAvaiEvents--;
@@ -605,7 +606,7 @@ YKEVENT *YKEventCreate(unsigned initialValue){
 int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
     int conditionMet = 0;
     int i;
-    YKEnterMutex();
+    
     if (waitMode == 1){
         conditionMet = 1;
         
@@ -627,10 +628,10 @@ int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
         }
     }
     else{
-        YKExitMutex();
+        
         exit(0xff);
     }
-    YKExitMutex();
+    
     return conditionMet;
 }
 
@@ -638,16 +639,16 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
     int conditionMet = 0;
     int i;
     TCBptr temp, temp2, iter;
-    YKEnterMutex();
+
     
     conditionMet = checkConditions(event, eventMask, waitMode);
 
     
     if (conditionMet){
-        YKExitMutex();
         return event->flags;
     }
     else{
+        YKEnterMutex();
         
         temp = YKRdyList; 
         
@@ -686,16 +687,15 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
                 temp2->next = temp;
             }
         }
+        YKExitMutex();
     }
-    YKExitMutex();
     return event->flags;
-
 }
 
 void YKEventSet(YKEVENT *event, unsigned eventMask){
     int i;
     int taskMadeReady = 0;
-    TCBptr iter, temp, temp2;
+    TCBptr iter, temp, temp2, next;
     YKEnterMutex();
     
     for (i = 0; i < 16; i++){
@@ -710,31 +710,32 @@ void YKEventSet(YKEVENT *event, unsigned eventMask){
         
         if (checkConditions(event, iter->flags, iter->waitMode)){
             
-            if (event->waitingOn != 0x0){
-                temp = event->waitingOn;
-                event->waitingOn = temp->next;
-                if (event->waitingOn != 0x0)
-                    event->waitingOn->prev = 0x0; 
-                
-                temp->state = 0;
-                
-                temp2 = YKRdyList;
-                while (temp2->priority < temp->priority){
-                    temp2 = temp2->next;
-                }
-                if (temp2->prev == 0x0){
-                    YKRdyList = temp;
-                }
-                else{
-                    temp2->prev->next = temp;
-                }
-                temp->prev = temp2->prev;
-                temp->next = temp2;
-                temp2->prev = temp;
+            next = iter->next;
+            if (iter->prev != 0x0)
+                iter->prev->next = iter->next;
+            if (iter->next != 0x0)
+                iter->next->prev = iter->prev;
+            
+            iter->state = 0;
+            
+            temp2 = YKRdyList;
+            while (temp2->priority < iter->priority){
+                temp2 = temp2->next;
             }
+            if (temp2->prev == 0x0){
+                YKRdyList = iter;
+            }
+            else{
+                temp2->prev->next = iter;
+            }
+            iter->prev = temp2->prev;
+            iter->next = temp2;
+            temp2->prev = iter;
             taskMadeReady = 1;
+            iter = next;
+        } else {
+            iter = iter->next;
         }
-        iter = iter->next;
     }
     
     if (taskMadeReady && nestingLevel == 0)
