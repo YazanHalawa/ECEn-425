@@ -643,7 +643,6 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
     
     conditionMet = checkConditions(event, eventMask, waitMode);
 
-    while(1){
     
     if (conditionMet){
         return event->flags;
@@ -691,7 +690,6 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
         YKScheduler(1);
         YKExitMutex();
     }
-}
     return event->flags;
 }
 

@@ -497,7 +497,6 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
     // ------- Test if Conditions are met --------//
     conditionMet = checkConditions(event, eventMask, waitMode);
 
-    while(1){
     // -------- If condition met, return. Else, block --------//
     if (conditionMet){
         return event->flags;
@@ -545,7 +544,6 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
         YKScheduler(ContextNotSaved);
         YKExitMutex();
     }
-}
     return event->flags;
 }
 
