@@ -4,13 +4,13 @@ Revision date: 4 November 2009
 Description: Sample interrupt handler code for EE 425 lab 6 (Message queues)
 */
 
-#include "lab7defs.h"
 #include "yakk.h"
 #include "clib.h"
+#include "lab7defs.h"
 
 extern YKQ *MsgQPtr; 
 extern struct msg MsgArray[];
-extern int GlobalFlag;
+extern int KeyBuffer;
 
 void reset_inth(void)
 {
@@ -19,17 +19,18 @@ void reset_inth(void)
 
 void mytick(void)
 {
-    static int next = 0;
-    static int data = 0;
+ //    static int next = 0;
+ //    static int data = 0;
 
-    /* create a message with tick (sequence #) and pseudo-random data */
-    MsgArray[next].tick = YKTickNum;
-    data = (data + 89) % 100;
-    MsgArray[next].data = data;
-    if (YKQPost(MsgQPtr, (void *) &(MsgArray[next])) == 0)
-    else if (++next >= MSGARRAYSIZE)
-	next = 0;
+ //    /* create a message with tick (sequence #) and pseudo-random data */
+ //    MsgArray[next].tick = YKTickNum;
+ //    data = (data + 89) % 100;
+ //    MsgArray[next].data = data;
+ //    if (YKQPost(MsgQPtr, (void *) &(MsgArray[next])) == 0)
+ //    else if (++next >= MSGARRAYSIZE)
+	// next = 0;
 }	       
+
 
 void keyboard_inth(void)
 {
