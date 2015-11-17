@@ -460,7 +460,6 @@ YKEVENT *YKEventCreate(unsigned initialValue){
 int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
     int conditionMet = 0;
     int i;
-    YKEnterMutex();
     if (waitMode == EVENT_WAIT_ALL){
         conditionMet = 1;
         // check all bits are asserted
@@ -482,27 +481,27 @@ int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
         }
     }
     else{
-         YKExitMutex();
         exit(0xff);
     }
-    YKExitMutex();
     return conditionMet;
 }
 
 unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
     int conditionMet = 0;
     int i;
+    unsigned flags;
     TCBptr temp, temp2, iter;
-
+    YKEnterMutex();
     // ------- Test if Conditions are met --------//
     conditionMet = checkConditions(event, eventMask, waitMode);
 
     // -------- If condition met, return. Else, block --------//
     if (conditionMet){
-        return event->flags;
+        flags = event->flags;
+        YKExitMutex();
+        return flags;
     }
     else{
-        YKEnterMutex();
         // Remove calling task's TCB from ready list
         temp = YKRdyList; // Hold the first ready task
         // Remove it from Ready list
@@ -511,7 +510,7 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
             YKRdyList->prev = NULL;
         // modify TCB, put in suspended list
             temp->state = BLOCKED;
-            temp->flags = event->flags;
+            temp->flags = eventMask;
             temp->waitMode = waitMode;
         // Put task at queue's blocked list
         if (event->waitingOn == NULL){
@@ -542,14 +541,16 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
             }
         }
         YKScheduler(ContextNotSaved);
+        flags = event->flags;
         YKExitMutex();
     }
-    return event->flags;
+    return flags;
 }
 
 void YKEventSet(YKEVENT *event, unsigned eventMask){
     int i;
     int taskMadeReady = 0;
+    unsigned flags;
     TCBptr iter, temp, temp2, next;
     YKEnterMutex();
     // ----- Set Flag Group ---- //
@@ -558,7 +559,8 @@ void YKEventSet(YKEVENT *event, unsigned eventMask){
             event->flags |= BIT(i);
         }
     }
-
+    flags = event->flags;
+    
     // ----- check Conditions ---- //
     iter = event->waitingOn;
     while (iter != NULL){
@@ -600,10 +602,12 @@ void YKEventSet(YKEVENT *event, unsigned eventMask){
 
 void YKEventReset(YKEVENT *event, unsigned eventMask){
     int i;
+    YKEnterMutex();
     for (i = 0; i < 16; i++){
         // If the specified bit is set in the mask, clear it in the event flags
         if (eventMask & BIT(i)){
             event->flags &= ~(BIT(i));
         }
     }
+    YKExitMutex();
 }
