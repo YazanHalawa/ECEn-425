@@ -99,7 +99,7 @@ void *YKQPend(YKQ *queue);
 
 int YKQPost(YKQ *queue, void *msg);
 
-int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode);
+int checkConditions(unsigned eventFlags, unsigned eventMask, int waitMode);
 
 YKEVENT *YKEventCreate(unsigned initialValue);
 

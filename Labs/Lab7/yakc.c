@@ -457,7 +457,7 @@ YKEVENT *YKEventCreate(unsigned initialValue){
     return &(YKEvents[YKAvaiEvents]);
 }
 
-int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
+int checkConditions(unsigned eventFlags, unsigned eventMask, int waitMode){
     int conditionMet = 0;
     int i;
     if (waitMode == EVENT_WAIT_ALL){
@@ -465,7 +465,7 @@ int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
         // check all bits are asserted
         for (i = 0; i < 16; i++){
             if ((eventMask & BIT(i))){
-                if (!(event->flags & BIT(i))){
+                if (!(eventFlags & BIT(i))){
                     conditionMet = 0;
                 }
             }
@@ -474,8 +474,9 @@ int checkConditions(YKEVENT *event, unsigned eventMask, int waitMode){
     else if (waitMode == EVENT_WAIT_ANY){
         for (i = 0; i < 16; i++){
             if (eventMask & BIT(i)){
-                if (event->flags & BIT(i)){
+                if (eventFlags & BIT(i)){
                     conditionMet = 1;
+                    break;
                 }
             }
         }
@@ -493,7 +494,7 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
     TCBptr temp, temp2, iter;
     YKEnterMutex();
     // ------- Test if Conditions are met --------//
-    conditionMet = checkConditions(event, eventMask, waitMode);
+    conditionMet = checkConditions(event->flags, eventMask, waitMode);
 
     // -------- If condition met, return. Else, block --------//
     if (conditionMet){
@@ -509,10 +510,10 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
         if (YKRdyList != NULL)
             YKRdyList->prev = NULL;
         // modify TCB, put in suspended list
-            temp->state = BLOCKED;
-            temp->flags = eventMask;
-            temp->waitMode = waitMode;
-        // Put task at queue's blocked list
+        temp->state = BLOCKED;
+        temp->flags = eventMask;
+        temp->waitMode = waitMode;
+        // Put task at event's blocked list
         if (event->waitingOn == NULL){
             event->waitingOn = temp;
             temp->next = NULL;
@@ -550,8 +551,8 @@ unsigned YKEventPend(YKEVENT *event, unsigned eventMask, int waitMode){
 void YKEventSet(YKEVENT *event, unsigned eventMask){
     int i;
     int taskMadeReady = 0;
-    unsigned flags;
     TCBptr iter, temp, temp2, next;
+    unsigned flags;
     YKEnterMutex();
     // ----- Set Flag Group ---- //
     for (i = 0; i < 16; i++){
@@ -560,14 +561,17 @@ void YKEventSet(YKEVENT *event, unsigned eventMask){
         }
     }
     flags = event->flags;
-    
     // ----- check Conditions ---- //
     iter = event->waitingOn;
     while (iter != NULL){
         // if conditions are met for that task, put in ready list
-        if (checkConditions(event, iter->flags, iter->waitMode)){
+        if (checkConditions(flags, iter->flags, iter->waitMode)){
             // remove from pending list
             next = iter->next;
+            // check if the task to remove is the head
+            if (iter == event->waitingOn){
+                event->waitingOn = iter->next;
+            }
             if (iter->prev != NULL)
                 iter->prev->next = iter->next;
             if (iter->next != NULL)
