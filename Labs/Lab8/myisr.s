@@ -29,3 +29,9 @@ keyboard:
 	call	YKExitISR
 	call	YKRestoreContext
 	iret
+
+gameOver:
+newPiece:
+receivedCommand:
+touchDown:
+lineClear:
