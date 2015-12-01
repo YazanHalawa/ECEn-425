@@ -31,7 +31,57 @@ keyboard:
 	iret
 
 gameOver:
+	call	YKSaveContext
+	call	
+
+	out	0x20, al
+	pop	ax
+	iret
+
 newPiece:
+	call	YKSaveContext
+	call	YKEnterISR
+
+	sti				; enable interrupts
+	call	gotNewPiece_handler
+	cli 			; disable interrupts
+
+	mov	al, 0x20	; Load nonspecific EOI value (0x20) into register al
+	out	0x20, al	; Write EOI to PIC (port 0x20)
+	call	YKExitISR
+	call	YKRestoreContext
+	iret
+
 receivedCommand:
+	call	YKSaveContext
+	call	YKEnterISR
+
+	sti				; enable interrupts
+	call	setReceivedCommand_handler
+	cli 			; disable interrupts
+
+	mov	al, 0x20	; Load nonspecific EOI value (0x20) into register al
+	out	0x20, al	; Write EOI to PIC (port 0x20)
+	call	YKExitISR
+	call	YKRestoreContext
+	iret
+
 touchDown:
+	push	ax
+	out	0x20, al
+	pop	ax
+	iret
+
 lineClear:
+	call	YKSaveContext
+	call	YKEnterISR
+
+	sti				; enable interrupts
+	call	incrLinesCleared_handler
+	cli 			; disable interrupts
+
+	mov	al, 0x20	; Load nonspecific EOI value (0x20) into register al
+	out	0x20, al	; Write EOI to PIC (port 0x20)
+	call	YKExitISR
+	call	YKRestoreContext
+	iret

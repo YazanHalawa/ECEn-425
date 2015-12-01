@@ -17,6 +17,8 @@
 #define MAXEVENTS 2
 #define EVENT_WAIT_ANY 0
 #define EVENT_WAIT_ALL 1
+#define CommandReceived 1
+#define CommandNotReceived 0
 // Macro for accessing specific bits in the unsigned value
 #define BIT(n) (1 << n)
 
