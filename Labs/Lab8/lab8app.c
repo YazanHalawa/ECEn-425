@@ -12,6 +12,22 @@ Description: Application code for EE 425 lab 8 (Simptris)
 #define pieceQSize 10
 #define moveQSize 10
 
+#define LeftBottomCorner 0
+#define RightBottomCorner 1
+#define RightTopCorner 2
+#define LeftTopCorner 3
+
+#define FlatHorz 0
+#define FlagVert 1
+
+#define StraightPiece 1
+#define CornerPiece 0
+
+#define slideLeft 0
+#define slideRight 1
+#define rotateLeft 2
+#define rotateRight 3
+
 YKSEM* nextCommandPtr;
 
 void *pieceQ[pieceQSize];           /* space for piece queue */
@@ -31,8 +47,15 @@ typedef struct pieceInfo {
     int column;
 } PIECE;
 
+typedef struct moveInfo {
+    int action;
+    int idOfPiece;
+} MOVE;
+
 PIECE pieces[pieceQSize];
 int availablePieces;
+
+int availableMoves;
 // variables
 extern int NewPieceID;
 extern int NewPieceType;
@@ -67,13 +90,50 @@ void gotNewPiece_handler(void){
 }
 
 void placementTask(void){ /* Determines sequence of slide and rotate commands */
+    PIECE* temp;
+    int id, col, orient, type;
     while(availablePieces < 10){
-        
+        temp = YKQPend(pieceQPtr);
+        availablePieces++;
+
+        id = temp->id;
+        type = temp->type;
+        orient = temp->orientation;
+        col = temp->column;
+
+        if (type == CornerPiece){
+            MOVE temp;
+            temp.idOfPiece = id;
+            temp.action = slideLeft;
+            YKQPost(moveQPtr, &temp);
+            availableMoves--;
+        }
+        else {
+            MOVE temp;
+            temp.idOfPiece = id;
+            temp.action = slideRight;
+            YKQPost(moveQPtr, &temp);
+            availableMoves--;
+        }
     }
 }
 
 void communicationTask(void){ /* Handles communication with Simptris */
+    MOVE* temp;
+    while (availableMoves < moveQSize){
+        availableMoves++;
+        temp = YKQPend(moveQPtr);
 
+        if (temp.action == slideLeft){
+            SlidePiece(temp.id, 0);
+        } else if (temp.action == slideRight){
+            SlidePiece(temp.id, 1);
+        } else if (temp.action == rotateLeft){
+            RotatePiece(temp.id, 1);
+        } else {
+            RotatePiece(temp.id, 0);
+        }
+    }
 }
 
 void statisticsTask(void){ /* tracks statistics */
@@ -132,6 +192,7 @@ void main(void)
     moveQPtr = YKQCreate(moveQ, moveQSize);
     SeedSimptris(37428);
     availablePieces = pieceQSize;
+    availableMoves = moveQSize;
     
     YKRun();
 }
