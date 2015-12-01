@@ -24,6 +24,15 @@ int placement[TASK_STACK_SIZE];     /* a stack for each task */
 int communication[TASK_STACK_SIZE];
 int statistics[TASK_STACK_SIZE];
 
+typedef struct pieceInfo {
+    int id;
+    int type;
+    int orientation;
+    int column;
+} PIECE;
+
+PIECE pieces[pieceQSize];
+int availablePieces;
 // variables
 extern int NewPieceID;
 extern int NewPieceType;
@@ -44,11 +53,23 @@ void setReceivedCommand_handler(void){
 }
 
 void gotNewPiece_handler(void){
-    
+    if (availablePieces <= 0){
+        printString("not enough pieces\n");
+        exit (0xff);
+    }
+    availablePieces--;
+    pieces[availablePieces].id = NewPieceID;
+    pieces[availablePieces].type = NewPieceType;
+    pieces[availablePieces].orientation = NewPieceOrientation;
+    pieces[availablePieces].column = NewPieceColumn;
+
+    YKQPost(pieceQPtr, &(pieces[availablePieces]));
 }
 
 void placementTask(void){ /* Determines sequence of slide and rotate commands */
-
+    while(availablePieces < 10){
+        
+    }
 }
 
 void communicationTask(void){ /* Handles communication with Simptris */
@@ -109,7 +130,8 @@ void main(void)
     nextCommandPtr = YKSemCreate(0);
     pieceQPtr = YKQCreate(pieceQ, pieceQSize);
     moveQPtr = YKQCreate(moveQ, moveQSize);
-    SeedSimptris(100);//What kind of seed should i choose?
+    SeedSimptris(37428);
+    availablePieces = pieceQSize;
     
     YKRun();
 }
