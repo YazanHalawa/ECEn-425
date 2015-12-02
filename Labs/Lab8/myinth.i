@@ -1,36 +1,77 @@
-#ifndef YAKK_H_
-#define YAKK_H_
+# 1 "myinth.c"
+# 1 "<built-in>" 1
+# 1 "<built-in>" 3
+# 331 "<built-in>" 3
+# 1 "<command line>" 1
+# 1 "<built-in>" 2
+# 1 "myinth.c" 2
 
-#include "clib.h" 
-#include "yaku.h"
 
-#define IDLE_STACK_SIZE 2048
-#define MAXTASKS 3	
-#define READY 0
-#define RUNNING 1
-#define BLOCKED 2
-#define FLAGB 0x0200
-#define ContextSaved 0
-#define ContextNotSaved 1
-#define MAXSEMS 1
-#define MAXQUEUES 2
-#define MAXEVENTS 1
-#define EVENT_WAIT_ANY 0
-#define EVENT_WAIT_ALL 1
-// Macro for accessing specific bits in the unsigned value
-#define BIT(n) (1 << n)
+
+
+
+
+
+# 1 "./yakk.h" 1
+
+
+
+
+# 1 "./clib.h" 1
+
+
+
+
+
+void print(char *string, int length); 
+void printNewLine(void);              
+void printChar(char c);               
+void printString(char *string);       
+
+
+void printInt(int val);
+void printLong(long val);
+void printUInt(unsigned val);
+void printULong(unsigned long val);
+
+
+void printByte(char val);
+void printWord(int val);
+void printDWord(long val);
+
+
+void exit(unsigned char code);        
+
+
+void signalEOI(void);                 
+
+
+# 5 "./yakk.h" 2
+# 1 "./yaku.h" 1
+
+
+
+
+
+
+# 6 "./yakk.h" 2
+
+
+# 20 "./yakk.h"
+
+
 
 
 typedef struct taskblock *TCBptr;
 typedef struct taskblock
 {
-                /* the TCB struct definition */
-    void *stackptr;     /* pointer to current top of stack */
-    int state;          /* current state */
-    int priority;       /* current priority */
-    unsigned delay;          /* #ticks yet to wait */
-    TCBptr next;        /* forward ptr for dbl linked list */
-    TCBptr prev;        /* backward ptr for dbl linked list */
+                
+    void *stackptr;     
+    int state;          
+    int priority;       
+    unsigned delay;          
+    TCBptr next;        
+    TCBptr prev;        
     unsigned flags;
     int waitMode;
 }  TCB;
@@ -53,7 +94,7 @@ typedef struct ykq
 
 typedef struct eventGroup
 {
-	unsigned flags; // 16-bit value to represent the flags
+	unsigned flags; 
 	TCBptr waitingOn;
 } YKEVENT;
 
@@ -109,4 +150,68 @@ void YKEventSet(YKEVENT *event, unsigned eventMask);
 
 void YKEventReset(YKEVENT *event, unsigned eventMask);
 
-#endif /* YAKK_H_ */
+
+# 8 "myinth.c" 2
+
+# 1 "./lab8defs.h" 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 10 "myinth.c" 2
+
+
+
+extern int KeyBuffer;
+
+void reset_inth(void)
+{
+    exit(0);
+}
+
+void mytick(void)
+{
+ 
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+	
+}	       
+
+
+void keyboard_inth(void)
+{
+    char c;
+    c = KeyBuffer;
+
+    
+    
+    
+    
+    
+    
+    
+    
+        print("\nKEYPRESS (", 11);
+        printChar(c);
+        print(") IGNORED\n", 10);
+    
+}

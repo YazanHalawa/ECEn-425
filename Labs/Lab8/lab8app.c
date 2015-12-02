@@ -66,13 +66,11 @@ int availablePieces;
 MOVE moves[moveQSize];
 int availableMoves;
 
-
-static int receivedCommand = CommandReceived;
 // ------------------------------------------- //
 
 // --------- Interrupt Handlers -------------- //
 void setReceivedCommand_handler(void){
-    receivedCommand = CommandReceived;
+    YKSemPost(nextCommandPtr);
 }
 
 void gotNewPiece_handler(void){
@@ -87,6 +85,11 @@ void gotNewPiece_handler(void){
     pieces[availablePieces].column = NewPieceColumn;
 
     YKQPost(pieceQPtr, (void*) &(pieces[availablePieces]));
+}
+
+void setGameOver(void){
+    printString("GAME OVER!");
+    exit(0xff);
 }
 //-------------------------------------------- //
 
@@ -131,22 +134,20 @@ void placementTask(void){ /* Determines sequence of slide and rotate commands */
 void communicationTask(void){ /* Handles communication with Simptris */
     MOVE* temp;
     while(1){
-        if (receivedCommand){ /* If the past command was received */
-            receivedCommand = CommandNotReceived; /* Reset the command flag */
-            temp = (MOVE*)YKQPend(moveQPtr); /* wait for next available move */
-            availableMoves++;
+        YKSemPend(nextCommandPtr);
+        temp = (MOVE*)YKQPend(moveQPtr); /* wait for next available move */
+        availableMoves++;
 
-            // Send the command to Simptris
-            if (temp->action == slideLeft){
-                SlidePiece(temp->idOfPiece, 0);
-            } else if (temp->action == slideRight){
-                SlidePiece(temp->idOfPiece, 1);
-            } else if (temp->action == rotateLeft){
-                RotatePiece(temp->idOfPiece, 1);
-            } else {
-                RotatePiece(temp->idOfPiece, 0);
-            }
-        }   
+        // Send the command to Simptris
+        if (temp->action == slideLeft){
+            SlidePiece(temp->idOfPiece, 0);
+        } else if (temp->action == slideRight){
+            SlidePiece(temp->idOfPiece, 1);
+        } else if (temp->action == rotateLeft){
+            RotatePiece(temp->idOfPiece, 1);
+        } else {
+            RotatePiece(temp->idOfPiece, 0);
+        } 
     }
 }
 
@@ -204,7 +205,7 @@ void main(void)
 
     /* create all semaphores, queues, tasks, etc. */
     YKNewTask(statisticsTask, (void *) &statistics[TASK_STACK_SIZE], 0);
-    nextCommandPtr = YKSemCreate(1);
+    nextCommandPtr = YKSemCreate(0);
     pieceQPtr = YKQCreate(pieceQ, pieceQSize);
     moveQPtr = YKQCreate(moveQ, moveQSize);
     availablePieces = pieceQSize;
