@@ -5,16 +5,16 @@
 #include "yaku.h"
 
 #define IDLE_STACK_SIZE 2048
-#define MAXTASKS 4	
+#define MAXTASKS 3	
 #define READY 0
 #define RUNNING 1
 #define BLOCKED 2
 #define FLAGB 0x0200
 #define ContextSaved 0
 #define ContextNotSaved 1
-#define MAXSEMS 4
-#define MAXQUEUES 1
-#define MAXEVENTS 2
+#define MAXSEMS 1
+#define MAXQUEUES 2
+#define MAXEVENTS 1
 #define EVENT_WAIT_ANY 0
 #define EVENT_WAIT_ALL 1
 #define CommandReceived 1

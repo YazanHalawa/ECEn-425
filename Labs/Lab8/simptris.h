@@ -1,3 +1,4 @@
+#pragma once
 // Simptris Command Function Header File
 
 void SlidePiece(int ID, int direction);

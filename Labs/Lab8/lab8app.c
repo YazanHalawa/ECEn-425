@@ -5,8 +5,9 @@ Description: Application code for EE 425 lab 8 (Simptris)
 */
 
 #include "clib.h"
-#include "yakk.h"                     /* contains kernel definitions */
-#include "lab7defs.h"
+#include "yakk.h"   
+#include "simptris.h"                  /* contains kernel definitions */
+#include "lab8defs.h"
 
 #define TASK_STACK_SIZE   512         /* stack size in words */
 #define pieceQSize 10
@@ -28,6 +29,13 @@ Description: Application code for EE 425 lab 8 (Simptris)
 #define rotateLeft 2
 #define rotateRight 3
 
+// ------------ Variable Declarations ------------------ //
+extern unsigned NewPieceID;
+extern unsigned NewPieceType;
+extern unsigned NewPieceOrientation;
+extern unsigned NewPieceColumn;
+extern unsigned TouchdownID;
+
 YKSEM* nextCommandPtr;
 
 void *pieceQ[pieceQSize];           /* space for piece queue */
@@ -41,43 +49,35 @@ int communication[TASK_STACK_SIZE];
 int statistics[TASK_STACK_SIZE];
 
 typedef struct pieceInfo {
-    int id;
-    int type;
-    int orientation;
-    int column;
+    unsigned id;
+    unsigned type;
+    unsigned orientation;
+    unsigned column;
 } PIECE;
 
 typedef struct moveInfo {
     int action;
-    int idOfPiece;
+    unsigned idOfPiece;
 } MOVE;
 
 PIECE pieces[pieceQSize];
 int availablePieces;
 
+MOVE moves[moveQSize];
 int availableMoves;
-// variables
-extern int NewPieceID;
-extern int NewPieceType;
-extern int NewPieceOrientation;
-extern int NewPieceColumn;
-extern int TouchdownID;
 
-static int linesCleared = 0;
+
 static int receivedCommand = CommandReceived;
+// ------------------------------------------- //
 
-// Interrupt Handlers
-void incrLinesCleared_handler(void){
-    linesCleared++;
-}
-
+// --------- Interrupt Handlers -------------- //
 void setReceivedCommand_handler(void){
     receivedCommand = CommandReceived;
 }
 
 void gotNewPiece_handler(void){
     if (availablePieces <= 0){
-        printString("not enough pieces\n");
+        printString("not enough pieces\r\n");
         exit (0xff);
     }
     availablePieces--;
@@ -86,58 +86,73 @@ void gotNewPiece_handler(void){
     pieces[availablePieces].orientation = NewPieceOrientation;
     pieces[availablePieces].column = NewPieceColumn;
 
-    YKQPost(pieceQPtr, &(pieces[availablePieces]));
+    YKQPost(pieceQPtr, (void*) &(pieces[availablePieces]));
 }
+//-------------------------------------------- //
 
+//------------- Helper functions ------------- //
+void createMove(unsigned idOfPiece, int action){
+    if (availableMoves <= 0){
+        printString("not enough moves\r\n");
+        exit(0xff);
+    }
+    availableMoves--;
+    moves[availableMoves].idOfPiece = idOfPiece;
+    moves[availableMoves].action = action;
+
+    YKQPost(moveQPtr, (void*) &(moves[availableMoves]));
+}
+// -------------------------------------------- //
+
+// ------------ Task Code --------------------- //
 void placementTask(void){ /* Determines sequence of slide and rotate commands */
     PIECE* temp;
     int id, col, orient, type;
-    while(availablePieces < 10){
-        temp = YKQPend(pieceQPtr);
+    while(1){
+        temp = (PIECE*)YKQPend(pieceQPtr); /* wait for next available piece */
         availablePieces++;
 
+        // Grab the details of the piece
         id = temp->id;
         type = temp->type;
         orient = temp->orientation;
         col = temp->column;
 
+        // Algorithm for placing the piece
         if (type == CornerPiece){
-            MOVE temp;
-            temp.idOfPiece = id;
-            temp.action = slideLeft;
-            YKQPost(moveQPtr, &temp);
-            availableMoves--;
+            createMove(id, slideLeft);
         }
         else {
-            MOVE temp;
-            temp.idOfPiece = id;
-            temp.action = slideRight;
-            YKQPost(moveQPtr, &temp);
-            availableMoves--;
+            createMove(id, slideRight);
         }
     }
 }
 
 void communicationTask(void){ /* Handles communication with Simptris */
     MOVE* temp;
-    while (availableMoves < moveQSize){
-        availableMoves++;
-        temp = YKQPend(moveQPtr);
+    while(1){
+        if (receivedCommand){ /* If the past command was received */
+            receivedCommand = CommandNotReceived; /* Reset the command flag */
+            temp = (MOVE*)YKQPend(moveQPtr); /* wait for next available move */
+            availableMoves++;
 
-        if (temp.action == slideLeft){
-            SlidePiece(temp.id, 0);
-        } else if (temp.action == slideRight){
-            SlidePiece(temp.id, 1);
-        } else if (temp.action == rotateLeft){
-            RotatePiece(temp.id, 1);
-        } else {
-            RotatePiece(temp.id, 0);
-        }
+            // Send the command to Simptris
+            if (temp->action == slideLeft){
+                SlidePiece(temp->idOfPiece, 0);
+            } else if (temp->action == slideRight){
+                SlidePiece(temp->idOfPiece, 1);
+            } else if (temp->action == rotateLeft){
+                RotatePiece(temp->idOfPiece, 1);
+            } else {
+                RotatePiece(temp->idOfPiece, 0);
+            }
+        }   
     }
 }
 
 void statisticsTask(void){ /* tracks statistics */
     unsigned idleCount, max;
+    int switchCount, tmp;
 
     YKDelayTask(1);
     printString("Welcome to the YAK kernel\r\n");
@@ -148,12 +163,13 @@ void statisticsTask(void){ /* tracks statistics */
     max = YKIdleCount / 25;
     YKIdleCount = 0;
 
+    // Run Simptris
+    SeedSimptris(37428L);
+    StartSimptris();
+
     // Create the tasks here
     YKNewTask(placement, (void*) &placement[TASK_STACK_SIZE], 1);
     YKNewTask(communication, (void*) &communication[TASK_STACK_SIZE], 2);
-    
-    // Run Simptris
-    StartSimptris();
 
     while(1){
 
@@ -179,20 +195,21 @@ void statisticsTask(void){ /* tracks statistics */
     
 
 }
+// ----------------------------------------------- // 
 
-
+// -------------- Main Code ---------------------- //
 void main(void)
 {
     YKInitialize();
 
     /* create all semaphores, queues, tasks, etc. */
     YKNewTask(statisticsTask, (void *) &statistics[TASK_STACK_SIZE], 0);
-    nextCommandPtr = YKSemCreate(0);
+    nextCommandPtr = YKSemCreate(1);
     pieceQPtr = YKQCreate(pieceQ, pieceQSize);
     moveQPtr = YKQCreate(moveQ, moveQSize);
-    SeedSimptris(37428);
     availablePieces = pieceQSize;
     availableMoves = moveQSize;
     
     YKRun();
 }
+// ------------------------------------------------ //

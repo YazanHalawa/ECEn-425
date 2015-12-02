@@ -31,9 +31,8 @@ keyboard:
 	iret
 
 gameOver:
-	call	YKSaveContext
-	call	
-
+	push	ax
+	mov	al, 0x20	; Load nonspecific EOI value (0x20) into register al
 	out	0x20, al
 	pop	ax
 	iret
@@ -68,20 +67,14 @@ receivedCommand:
 
 touchDown:
 	push	ax
+	mov	al, 0x20	; Load nonspecific EOI value (0x20) into register al
 	out	0x20, al
 	pop	ax
 	iret
 
 lineClear:
-	call	YKSaveContext
-	call	YKEnterISR
-
-	sti				; enable interrupts
-	call	incrLinesCleared_handler
-	cli 			; disable interrupts
-
+	push	ax
 	mov	al, 0x20	; Load nonspecific EOI value (0x20) into register al
-	out	0x20, al	; Write EOI to PIC (port 0x20)
-	call	YKExitISR
-	call	YKRestoreContext
+	out	0x20, al
+	pop	ax
 	iret

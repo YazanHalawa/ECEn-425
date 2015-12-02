@@ -4,8 +4,8 @@
 lab8.bin:	labfinal.s
 		nasm labfinal.s -o lab8.bin -l lab8.lst
 
-labfinal.s:	clib.s myisr.s myinth.s lab8app.s yakc.s yaks.s
-		cat clib.s myisr.s myinth.s yakc.s lab8app.s yaks.s > labfinal.s
+labfinal.s:	clib.s myisr.s myinth.s lab8app.s yakc.s yaks.s simptris.s
+		cat clib.s myisr.s myinth.s yakc.s lab8app.s yaks.s simptris.s > labfinal.s
 
 myinth.s:	myinth.c
 		cpp -xc++ myinth.c myinth.i
