@@ -124,11 +124,11 @@ void placementTask(){ /* Determines sequence of slide and rotate commands */
 
         // Algorithm for placing the piece
         if (type == CornerPiece){
-            //printString("got Corner\r\n");
+            printString("got Corner\r\n");
             createMove(id, slideLeft);
         }
         else {
-            //printString("got flat\r\n");
+            printString("got flat\r\n");
             createMove(id, slideRight);
         }
     }
@@ -137,10 +137,8 @@ void placementTask(){ /* Determines sequence of slide and rotate commands */
 void communicationTask(){ /* Handles communication with Simptris */
     MOVE* temp;
     while(1){
-        YKSemPend(nextCommandPtr);
         temp = (MOVE*)YKQPend(moveQPtr); /* wait for next available move */
         availableMoves++;
-
         // Send the command to Simptris
         if (temp->action == slideLeft){
             SlidePiece(temp->idOfPiece, 0);
@@ -151,6 +149,7 @@ void communicationTask(){ /* Handles communication with Simptris */
         } else {
             RotatePiece(temp->idOfPiece, 0);
         } 
+        YKSemPend(nextCommandPtr);
     }
 }
 
@@ -171,8 +170,8 @@ void statisticsTask(){ /* tracks statistics */
     StartSimptris();
 
     // Create the tasks here
-    YKNewTask(placementTask, (void*) &placementTaskStk[TASK_STACK_SIZE], 10);
-    YKNewTask(communicationTask, (void*) &communicationTaskStk[TASK_STACK_SIZE], 20);
+    YKNewTask(placementTask, (void*) &placementTaskStk[TASK_STACK_SIZE], 20);
+    YKNewTask(communicationTask, (void*) &communicationTaskStk[TASK_STACK_SIZE], 10);
  
 
     while(1){
