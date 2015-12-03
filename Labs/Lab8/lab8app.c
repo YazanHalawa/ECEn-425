@@ -9,6 +9,8 @@ Description: Application code for EE 425 lab 8 (Simptris)
 #include "simptris.h"                  /* contains kernel definitions */
 #include "lab8defs.h"
 
+#define SEED 37428L
+
 #define TASK_STACK_SIZE   512         /* stack size in words */
 #define pieceQSize 10
 #define moveQSize 10
@@ -165,17 +167,14 @@ void statisticsTask(void){ /* tracks statistics */
     YKIdleCount = 0;
 
     // Run Simptris
-    SeedSimptris(37428L);
     StartSimptris();
 
     // Create the tasks here
     YKNewTask(placement, (void*) &placement[TASK_STACK_SIZE], 1);
     YKNewTask(communication, (void*) &communication[TASK_STACK_SIZE], 2);
-
     while(1){
-
         YKDelayTask(20);
-        
+
         YKEnterMutex();
         switchCount = YKCtxSwCount;
         idleCount = YKIdleCount;
@@ -204,13 +203,15 @@ void main(void)
     YKInitialize();
 
     /* create all semaphores, queues, tasks, etc. */
-    YKNewTask(statisticsTask, (void *) &statistics[TASK_STACK_SIZE], 0);
+    YKNewTask(statisticsTask, (void *) &statistics[TASK_STACK_SIZE], 3);
     nextCommandPtr = YKSemCreate(0);
     pieceQPtr = YKQCreate(pieceQ, pieceQSize);
     moveQPtr = YKQCreate(moveQ, moveQSize);
     availablePieces = pieceQSize;
     availableMoves = moveQSize;
-    
+    SeedSimptris(SEED);
+
+
     YKRun();
 }
 // ------------------------------------------------ //

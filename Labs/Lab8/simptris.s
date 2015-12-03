@@ -1,3 +1,4 @@
+	
 	align 2
 SlidePiece:	; void SlidePiece(int ID, int direction)
 	push	bp

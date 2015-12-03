@@ -34,8 +34,8 @@ void mytick(void)
 
 void keyboard_inth(void)
 {
-    char c;
-    c = KeyBuffer;
+    // char c;
+    // c = KeyBuffer;
 
     // if(c == 'a') YKEventSet(charEvent, EVENT_A_KEY);
     // else if(c == 'b') YKEventSet(charEvent, EVENT_B_KEY);
@@ -45,8 +45,8 @@ void keyboard_inth(void)
     // else if(c == '2') YKEventSet(numEvent, EVENT_2_KEY);
     // else if(c == '3') YKEventSet(numEvent, EVENT_3_KEY);
     // else {
-        print("\nKEYPRESS (", 11);
-        printChar(c);
-        print(") IGNORED\n", 10);
+        // print("\nKEYPRESS (", 11);
+        // printChar(c);
+        // print(") IGNORED\n", 10);
     // }
 }
