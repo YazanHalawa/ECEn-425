@@ -51,6 +51,7 @@ void YKInitialize(){
 }
 
 void YKIdleTask(){
+    printString("in idle\r\n");
     while(1){
         YKEnterMutex();
         YKIdleCount++;

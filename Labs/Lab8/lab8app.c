@@ -11,7 +11,7 @@ Description: Application code for EE 425 lab 8 (Simptris)
 
 #define SEED 37428L
 
-#define TASK_STACK_SIZE   512         /* stack size in words */
+#define TASK_STACK_SIZE  512         /* stack size in words */
 #define pieceQSize 10
 #define moveQSize 10
 
@@ -46,9 +46,9 @@ YKQ* pieceQPtr;
 void *moveQ[moveQSize];             /* space for move queue */
 YKQ* moveQPtr;
 
-int placement[TASK_STACK_SIZE];     /* a stack for each task */
-int communication[TASK_STACK_SIZE];
-int statistics[TASK_STACK_SIZE];
+int placementTaskStk[TASK_STACK_SIZE];     /* a stack for each task */
+int communicationTaskStk[TASK_STACK_SIZE];
+int statisticsTaskStk[TASK_STACK_SIZE];
 
 typedef struct pieceInfo {
     unsigned id;
@@ -63,10 +63,10 @@ typedef struct moveInfo {
 } MOVE;
 
 PIECE pieces[pieceQSize];
-int availablePieces;
+static int availablePieces;
 
 MOVE moves[moveQSize];
-int availableMoves;
+static int availableMoves;
 
 // ------------------------------------------- //
 
@@ -110,13 +110,12 @@ void createMove(unsigned idOfPiece, int action){
 // -------------------------------------------- //
 
 // ------------ Task Code --------------------- //
-void placementTask(void){ /* Determines sequence of slide and rotate commands */
+void placementTask(){ /* Determines sequence of slide and rotate commands */
     PIECE* temp;
     int id, col, orient, type;
     while(1){
         temp = (PIECE*)YKQPend(pieceQPtr); /* wait for next available piece */
         availablePieces++;
-
         // Grab the details of the piece
         id = temp->id;
         type = temp->type;
@@ -125,15 +124,17 @@ void placementTask(void){ /* Determines sequence of slide and rotate commands */
 
         // Algorithm for placing the piece
         if (type == CornerPiece){
+            //printString("got Corner\r\n");
             createMove(id, slideLeft);
         }
         else {
+            //printString("got flat\r\n");
             createMove(id, slideRight);
         }
     }
 }
 
-void communicationTask(void){ /* Handles communication with Simptris */
+void communicationTask(){ /* Handles communication with Simptris */
     MOVE* temp;
     while(1){
         YKSemPend(nextCommandPtr);
@@ -153,7 +154,7 @@ void communicationTask(void){ /* Handles communication with Simptris */
     }
 }
 
-void statisticsTask(void){ /* tracks statistics */
+void statisticsTask(){ /* tracks statistics */
     unsigned idleCount, max;
     int switchCount, tmp;
 
@@ -170,10 +171,14 @@ void statisticsTask(void){ /* tracks statistics */
     StartSimptris();
 
     // Create the tasks here
-    YKNewTask(placement, (void*) &placement[TASK_STACK_SIZE], 1);
-    YKNewTask(communication, (void*) &communication[TASK_STACK_SIZE], 2);
+    YKNewTask(placementTask, (void*) &placementTaskStk[TASK_STACK_SIZE], 10);
+    YKNewTask(communicationTask, (void*) &communicationTaskStk[TASK_STACK_SIZE], 20);
+ 
+
     while(1){
+        printString("before delay\r\n");
         YKDelayTask(20);
+        printString("after delay\r\n");
 
         YKEnterMutex();
         switchCount = YKCtxSwCount;
@@ -203,7 +208,7 @@ void main(void)
     YKInitialize();
 
     /* create all semaphores, queues, tasks, etc. */
-    YKNewTask(statisticsTask, (void *) &statistics[TASK_STACK_SIZE], 3);
+    YKNewTask(statisticsTask, (void *) &statisticsTaskStk[TASK_STACK_SIZE], 30);
     nextCommandPtr = YKSemCreate(0);
     pieceQPtr = YKQCreate(pieceQ, pieceQSize);
     moveQPtr = YKQCreate(moveQ, moveQSize);
