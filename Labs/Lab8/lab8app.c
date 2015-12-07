@@ -12,8 +12,8 @@ Description: Application code for EE 425 lab 8 (Simptris)
 #define SEED 37428L
 
 #define TASK_STACK_SIZE  512         /* stack size in words */
-#define pieceQSize 10
-#define moveQSize 10
+#define pieceQSize 100
+#define moveQSize 100
 
 #define LeftBottomCorner 0
 #define RightBottomCorner 1
@@ -21,7 +21,7 @@ Description: Application code for EE 425 lab 8 (Simptris)
 #define LeftTopCorner 3
 
 #define FlatHorz 0
-#define FlagVert 1
+#define FlatVert 1
 
 #define StraightPiece 1
 #define CornerPiece 0
@@ -30,6 +30,9 @@ Description: Application code for EE 425 lab 8 (Simptris)
 #define slideRight 1
 #define rotateLeft 2
 #define rotateRight 3
+
+#define LEFT 1
+#define RIGHT 0
 
 // ------------ Variable Declarations ------------------ //
 extern unsigned NewPieceID;
@@ -68,9 +71,14 @@ static int availablePieces;
 MOVE moves[moveQSize];
 static int availableMoves;
 
+int gotBottomLeft;
+int goal;
+int leftSideHeight; /* to track the height of the left side */
+int rightSideHeight; /* to track the height of the right side */
 // ------------------------------------------- //
 
 // --------- Interrupt Handlers -------------- //
+
 void setReceivedCommand_handler(void){
     YKSemPost(nextCommandPtr);
 }
@@ -107,6 +115,89 @@ void createMove(unsigned idOfPiece, int action){
 
     YKQPost(moveQPtr, (void*) &(moves[availableMoves]));
 }
+
+void makeBarHorizontal(int id, int orient, int col){
+    if (orient == FlatVert){
+        if (col == 0){
+            createMove(id, slideRight);
+            col = 1;
+        }
+        else if (col == 5){
+            createMove(id, slideLeft);
+            col = 4;
+        }
+        createMove(id, rotateRight);
+    }
+}
+
+void handleCorner(int col, int orient, int id){
+    if (col == 0){
+        createMove(id, slideRight);
+        col = 1;
+    }
+    if (col == 5){
+        createMove(id, slideLeft);
+        col = 4;
+    }
+    if (gotBottomLeft){
+        if (orient == RightTopCorner){
+            /* Do nothing cause that's what we want to counter-effect the bottom left */
+        }
+        else if (orient == RightBottomCorner){
+            createMove(id, rotateLeft);
+        }
+        else if (orient == LeftTopCorner){
+            createMove(id, rotateRight);
+        }
+        else if (orient == LeftBottomCorner){
+            createMove(id, rotateLeft);
+            createMove(id, rotateLeft);
+        }
+        gotBottomLeft = 0;
+        if (col > 2){
+            while(col != 2){
+                createMove(id, slideLeft);
+                col--;
+            }
+        } else if (col < 2){
+            createMove(id, slideRight);
+            col++;
+        }
+    } else {
+        // printString("bottom left was not on\r\n");
+        if (orient == RightTopCorner){
+            // printString("got right top\r\n");
+            createMove(id, rotateRight);
+            createMove(id, rotateRight);
+        }
+        else if (orient == RightBottomCorner){
+            // printString("got right bottom\r\n");
+            createMove(id, rotateRight);
+        }
+        else if (orient == LeftTopCorner){
+            // printString("got left top\r\n");
+            createMove(id, rotateLeft);
+        }
+        else if (orient == LeftBottomCorner){
+            // printString("got left bottom\r\n");
+            /* Do nothing cause that's what we want*/
+        }
+        gotBottomLeft = 1;
+        createMove(id, slideLeft);
+        createMove(id, slideLeft);
+        createMove(id, slideLeft);
+        createMove(id, slideLeft);
+        }
+    leftSideHeight+=2;
+}
+
+void handleStraight(int id, int orient, int col){
+    makeBarHorizontal(id, orient, col);
+    createMove(id, slideRight);
+    createMove(id, slideRight);
+    createMove(id, slideRight);
+    rightSideHeight++;
+}
 // -------------------------------------------- //
 
 // ------------ Task Code --------------------- //
@@ -121,15 +212,12 @@ void placementTask(){ /* Determines sequence of slide and rotate commands */
         type = temp->type;
         orient = temp->orientation;
         col = temp->column;
-
         // Algorithm for placing the piece
-        if (type == CornerPiece){
-            printString("got Corner\r\n");
-            createMove(id, slideLeft);
+        if (type == CornerPiece){ /* Got a Corner piece */
+            handleCorner(col, orient, id);
         }
         else {
-            printString("got flat\r\n");
-            createMove(id, slideRight);
+            handleStraight(id, orient, col);
         }
     }
 }
@@ -145,9 +233,9 @@ void communicationTask(){ /* Handles communication with Simptris */
         } else if (temp->action == slideRight){
             SlidePiece(temp->idOfPiece, 1);
         } else if (temp->action == rotateLeft){
-            RotatePiece(temp->idOfPiece, 1);
-        } else {
             RotatePiece(temp->idOfPiece, 0);
+        } else {
+            RotatePiece(temp->idOfPiece, 1);
         } 
         YKSemPend(nextCommandPtr);
     }
@@ -175,9 +263,7 @@ void statisticsTask(){ /* tracks statistics */
  
 
     while(1){
-        printString("before delay\r\n");
         YKDelayTask(20);
-        printString("after delay\r\n");
 
         YKEnterMutex();
         switchCount = YKCtxSwCount;
@@ -214,7 +300,12 @@ void main(void)
     availablePieces = pieceQSize;
     availableMoves = moveQSize;
     SeedSimptris(SEED);
-
+    
+    // Init variables
+    leftSideHeight = 0;
+    rightSideHeight = 0;
+    goal = 0;
+    gotBottomLeft = 0;
 
     YKRun();
 }
