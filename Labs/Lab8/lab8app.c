@@ -71,9 +71,12 @@ static int availablePieces;
 MOVE moves[moveQSize];
 static int availableMoves;
 
+int droppedLeft;
 int gotBottomLeft;
 int gotBottomRight;
 int gotLeft;
+int leftEven;
+int rightEven;
 int leftSideHeight; /* to track the height of the left side */
 int rightSideHeight; /* to track the height of the right side */
 // ------------------------------------------- //
@@ -132,10 +135,12 @@ void makeBarHorizontal(int id, int orient, int col){
 }
 
 void handleCorner(int col, int orient, int id, int direction){
-    if (direction == slideLeft)
+    if (direction == slideLeft){
         gotLeft++;
-    else
+    }
+    else{
         gotLeft--;
+    }
 
     if (direction == slideLeft){
         if (col == 0 && !(!gotBottomLeft && orient == LeftBottomCorner)){
@@ -170,6 +175,7 @@ void handleCorner(int col, int orient, int id, int direction){
                 createMove(id, slideRight);
                 col++;
             }
+            leftEven = 1;
         } else {
             if (orient == RightTopCorner){
                 createMove(id, rotateRight);
@@ -189,8 +195,10 @@ void handleCorner(int col, int orient, int id, int direction){
             createMove(id, direction);
             createMove(id, direction);
             createMove(id, direction);
+            leftEven = 0;
+            leftSideHeight+=2;
             }
-        leftSideHeight+=2;
+        droppedLeft = 1;
     }
     else {
         if (col == 0){
@@ -229,6 +237,7 @@ void handleCorner(int col, int orient, int id, int direction){
                     col++; 
                 }
             }
+            rightEven = 1;
         } else {
             if (orient == RightTopCorner){
                 createMove(id, rotateRight);
@@ -248,17 +257,23 @@ void handleCorner(int col, int orient, int id, int direction){
             createMove(id, direction);
             createMove(id, direction);
             createMove(id, direction);
+            rightEven = 0;
+            rightSideHeight+=2;
             }
-        rightSideHeight+=2;
+        droppedLeft = 0;
     }
 
 }
 
 void handleStraight(int id, int orient, int col, int direction, int variable){
-    if (direction == slideLeft)
+    if (direction == slideLeft){
+        droppedLeft = 0;
         gotLeft++;
-    else
+    }
+    else{
         gotLeft--;
+        droppedLeft = 1;
+    }
     if (direction == slideLeft)
         leftSideHeight++;
     else
@@ -284,13 +299,13 @@ void placementTask(){ /* Determines sequence of slide and rotate commands */
         col = temp->column;
         // Algorithm for placing the piece
         if (type == CornerPiece){ /* Got a Corner piece */
-            if (gotLeft < 5)
+            if ((leftSideHeight < rightSideHeight) || !leftEven)
                 handleCorner(col, orient, id, slideLeft);
             else
                 handleCorner(col, orient, id, slideRight);
         }
         else {
-            if (gotLeft < 5)
+            if ((rightSideHeight < leftSideHeight) || !leftEven)
                 handleStraight(id, orient, col, slideRight, rightSideHeight);
             else
                 handleStraight(id, orient, col, slideLeft, leftSideHeight);
@@ -383,6 +398,7 @@ void main(void)
     rightSideHeight = 0;
     gotBottomLeft = 0;
     gotBottomRight = 0;
+    droppedLeft = 0;
     gotLeft = 0;
     YKRun();
 }
