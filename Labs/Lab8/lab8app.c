@@ -12,8 +12,8 @@ Description: Application code for EE 425 lab 8 (Simptris)
 #define SEED 37428L
 
 #define TASK_STACK_SIZE  4096         /* stack size in words */
-#define pieceQSize 100
-#define moveQSize 100
+#define pieceQSize 10
+#define moveQSize 10
 
 #define LeftBottomCorner 0
 #define RightBottomCorner 1
@@ -71,7 +71,6 @@ static int availablePieces;
 MOVE moves[moveQSize];
 static int availableMoves;
 
-int droppedLeft;
 int gotBottomLeft;
 int gotBottomRight;
 int gotLeft;
@@ -120,7 +119,7 @@ void createMove(unsigned idOfPiece, int action){
     YKQPost(moveQPtr, (void*) &(moves[availableMoves]));
 }
 
-void makeBarHorizontal(int id, int orient, int col){
+int makeBarHorizontal(int id, int orient, int col){
     if (orient == FlatVert){
         if (col == 0){
             createMove(id, slideRight);
@@ -132,17 +131,12 @@ void makeBarHorizontal(int id, int orient, int col){
         }
         createMove(id, rotateRight);
     }
+    return col;
 }
 
 void handleCorner(int col, int orient, int id, int direction){
     if (direction == slideLeft){
         gotLeft++;
-    }
-    else{
-        gotLeft--;
-    }
-
-    if (direction == slideLeft){
         if (col == 0 && !(!gotBottomLeft && orient == LeftBottomCorner)){
             createMove(id, slideRight);
             col = 1;
@@ -191,21 +185,19 @@ void handleCorner(int col, int orient, int id, int direction){
                 /* Do nothing cause that's what we want*/
             }
             gotBottomLeft = 1;
-            createMove(id, direction);
-            createMove(id, direction);
-            createMove(id, direction);
-            createMove(id, direction);
+            while (col != 0){
+                col--;
+                createMove(id, direction);
+            }
             leftEven = 0;
             leftSideHeight+=2;
             }
-        droppedLeft = 1;
     }
     else {
+        gotLeft--;
         if (col == 0){
             createMove(id, slideRight);
-            createMove(id, slideRight);
-            createMove(id, slideRight);
-            col = 3;
+            col = 1;
         }
         if (col == 5 && !(!gotBottomRight && orient == RightBottomCorner)){
             createMove(id, slideLeft);
@@ -253,35 +245,35 @@ void handleCorner(int col, int orient, int id, int direction){
                 createMove(id, rotateLeft);
             }
             gotBottomRight = 1;
-            createMove(id, direction);
-            createMove(id, direction);
-            createMove(id, direction);
-            createMove(id, direction);
+            while(col != 5){
+                col++;
+                createMove(id, direction);
+            }
             rightEven = 0;
             rightSideHeight+=2;
-            }
-        droppedLeft = 0;
+        }
     }
 
 }
 
 void handleStraight(int id, int orient, int col, int direction, int variable){
+    col = makeBarHorizontal(id, orient, col);
     if (direction == slideLeft){
-        droppedLeft = 0;
         gotLeft++;
+        leftSideHeight++;
+        while (col != 1){
+            col--;
+            createMove(id, direction);
+        }
     }
     else{
-        gotLeft--;
-        droppedLeft = 1;
-    }
-    if (direction == slideLeft)
-        leftSideHeight++;
-    else
         rightSideHeight++;
-    makeBarHorizontal(id, orient, col);
-    createMove(id, direction);
-    createMove(id, direction);
-    createMove(id, direction);
+        gotLeft--;
+        while(col != 4){
+            col++;
+            createMove(id, direction);
+        }
+    }
 }
 // -------------------------------------------- //
 
@@ -299,18 +291,17 @@ void placementTask(){ /* Determines sequence of slide and rotate commands */
         col = temp->column;
         // Algorithm for placing the piece
         if (type == CornerPiece){ /* Got a Corner piece */
-            if ((leftSideHeight < rightSideHeight) || !leftEven)
+            if (((leftSideHeight < rightSideHeight) || !leftEven) && rightEven)
                 handleCorner(col, orient, id, slideLeft);
             else
                 handleCorner(col, orient, id, slideRight);
         }
         else {
-            if ((rightSideHeight < leftSideHeight) || !leftEven)
+            if (((leftSideHeight > rightSideHeight) || !leftEven) && rightEven)
                 handleStraight(id, orient, col, slideRight, rightSideHeight);
             else
                 handleStraight(id, orient, col, slideLeft, leftSideHeight);
         }
-        printInt(gotLeft);
     }
 }
 
@@ -398,8 +389,9 @@ void main(void)
     rightSideHeight = 0;
     gotBottomLeft = 0;
     gotBottomRight = 0;
-    droppedLeft = 0;
     gotLeft = 0;
+    leftEven = 1;
+    rightEven = 1;
     YKRun();
 }
 // ------------------------------------------------ //
