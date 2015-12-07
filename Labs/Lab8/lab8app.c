@@ -253,7 +253,6 @@ void handleCorner(int col, int orient, int id, int direction){
             rightSideHeight+=2;
         }
     }
-
 }
 
 void handleStraight(int id, int orient, int col, int direction, int variable){
